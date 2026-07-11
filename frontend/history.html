@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoadGuard AI - Rider Telemetry History</title>
+    <!-- Google Fonts: Outfit & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet.js Mapping Library CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        cyber: {
+                            bg: '#08080C',
+                            card: '#12121A',
+                            border: '#1F1F2E',
+                            accent: '#45A29E',
+                            pink: '#FF4B72',
+                            neonGreen: '#39FF14',
+                            neonYellow: '#FFD700',
+                            neonCyan: '#00F0FF',
+                        }
+                    },
+                    boxShadow: {
+                        'glow-pink': '0 0 15px rgba(255, 75, 114, 0.4)',
+                        'glow-cyan': '0 0 15px rgba(0, 240, 255, 0.4)',
+                        'glow-green': '0 0 15px rgba(57, 255, 20, 0.4)',
+                        'glow-yellow': '0 0 15px rgba(255, 215, 0, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-panel {
+            background: rgba(18, 18, 26, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .glow-border-pink {
+            border-bottom: 2px solid #FF4B72;
+            box-shadow: 0 4px 15px -3px rgba(255, 75, 114, 0.3);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #08080C;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1F1F2E;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #FF4B72;
+        }
+        .leaflet-popup-content-wrapper {
+            background: #12121A !important;
+            color: #E2E8F0 !important;
+            border: 1px solid #1F1F2E !important;
+            border-radius: 12px !important;
+            padding: 4px !important;
+            font-family: 'Outfit', sans-serif !important;
+        }
+        .leaflet-popup-tip {
+            background: #12121A !important;
+            border: 1px solid #1F1F2E !important;
+        }
+        .pulse-slow {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .4; }
+        }
+    </style>
+</head>
+<body class="bg-cyber-bg text-gray-200 font-sans min-h-screen flex flex-col selection:bg-cyber-pink selection:text-white overflow-hidden">
+
+    <!-- TOP HEADER -->
+    <header class="w-full glass-panel sticky top-0 z-40 glow-border-pink px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <a href="rider_dashboard.html" class="w-9 h-9 rounded-lg bg-cyber-card border border-cyber-border text-gray-400 hover:text-white hover:border-cyber-pink hover:shadow-glow-pink flex items-center justify-center transition-all duration-300">
+                <i class="fa-solid fa-chevron-left"></i>
+            </a>
+            <div>
+                <h1 class="text-base md:text-lg font-black tracking-tight flex items-center gap-2">
+                    <span>MY ROADGUARD ARCHIVE</span>
+                    <span class="text-xs text-gray-500 font-medium tracking-wide">|</span>
+                    <span class="text-xs text-cyber-pink font-semibold">Rider: <span id="header-username">Guest</span></span>
+                </h1>
+                <p class="text-[9px] text-gray-500 font-medium tracking-widest uppercase">Personal Pothole Mapping logs & telemetry</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <!-- PING/API STATUS INDICATOR -->
+            <div id="api-status-pill" class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-950/40 text-red-400 border border-red-500/20">
+                <span id="api-status-dot" class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                <span id="api-status-text" class="font-mono text-[9px] uppercase tracking-wider">OFFLINE</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN BODY SECTION -->
+    <main class="flex-grow flex flex-col md:flex-row w-full max-w-[1920px] mx-auto p-4 gap-4 overflow-hidden h-[calc(100vh-68px)]">
+        
+        <!-- LEFT COLUMN: STATS AND LIST -->
+        <section class="w-full md:w-1/3 flex flex-col gap-4 h-full overflow-hidden shrink-0">
+            <!-- PERSONAL STATS -->
+            <div class="grid grid-cols-2 gap-2">
+                <!-- TOTAL POTHOLES -->
+                <div class="glass-panel rounded-xl p-3 border border-cyber-border flex flex-col justify-between hover:border-white/10 transition duration-300">
+                    <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Potholes Mapped</span>
+                    <div class="mt-2 flex items-baseline gap-1">
+                        <span id="stat-total" class="text-3xl font-extrabold text-white font-mono tracking-tight">0</span>
+                        <span class="text-[10px] text-gray-500 font-semibold">items</span>
+                    </div>
+                </div>
+
+                <!-- SIMULATED DATA -->
+                <div class="glass-panel rounded-xl p-3 border border-cyber-border flex flex-col justify-between hover:border-white/10 transition duration-300">
+                    <span class="text-[10px] text-cyber-neonGreen font-bold uppercase tracking-wider">Simulated Hits</span>
+                    <div class="mt-2 flex items-baseline gap-1">
+                        <span id="stat-simulated" class="text-3xl font-extrabold text-cyber-neonGreen font-mono tracking-tight">0</span>
+                        <span class="text-[10px] text-gray-500 font-semibold">mock</span>
+                    </div>
+                </div>
+
+                <!-- CRITICAL HIGH -->
+                <div class="glass-panel rounded-xl p-3 border border-cyber-border flex flex-col justify-between hover:border-cyber-pink/30 transition duration-300">
+                    <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-cyber-pink"></span> Critical (High)
+                    </span>
+                    <div class="mt-2 flex items-baseline gap-1">
+                        <span id="stat-high" class="text-3xl font-extrabold text-white font-mono tracking-tight">0</span>
+                        <span class="text-[10px] text-gray-500 font-semibold">critical</span>
+                    </div>
+                </div>
+
+                <!-- STANDARD MEDIUM -->
+                <div class="glass-panel rounded-xl p-3 border border-cyber-border flex flex-col justify-between hover:border-cyber-neonYellow/30 transition duration-300">
+                    <span class="text-[10px] text-cyber-neonYellow font-bold uppercase tracking-wider flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-cyber-neonYellow"></span> Threat (Medium)
+                    </span>
+                    <div class="mt-2 flex items-baseline gap-1">
+                        <span id="stat-medium" class="text-3xl font-extrabold text-white font-mono tracking-tight">0</span>
+                        <span class="text-[10px] text-gray-500 font-semibold">medium</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LOGS CATALOG LIST -->
+            <div class="glass-panel rounded-2xl p-4 border border-cyber-border flex flex-col flex-grow overflow-hidden relative shadow-2xl">
+                <div class="flex items-center justify-between pb-3 border-b border-cyber-border mb-3">
+                    <h2 class="text-xs font-black tracking-wider text-gray-400 uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-list-ul text-cyber-pink"></i>
+                        <span>My Mapping Catalog</span>
+                    </h2>
+                </div>
+
+                <!-- Scrollable logger list -->
+                <div id="history-feed-container" class="flex-grow overflow-y-auto flex flex-col gap-2 pr-1 font-mono text-[11px] leading-relaxed">
+                    <!-- Loading state placeholder -->
+                    <div id="history-placeholder" class="text-center py-12 text-gray-500 flex flex-col items-center gap-3">
+                        <i class="fa-solid fa-clock-rotate-left text-2xl text-cyber-border animate-pulse"></i>
+                        <span class="text-xs font-semibold">Retrieving your coordinates telemetry...</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: INTERACTIVE MAP -->
+        <section class="flex-grow md:w-2/3 h-full rounded-2xl border border-cyber-border overflow-hidden shadow-2xl relative">
+            <div id="history-map" class="absolute inset-0 z-10 bg-[#08080C]"></div>
+
+            <!-- Overlay Legends -->
+            <div class="absolute bottom-6 right-6 z-20 pointer-events-none flex flex-col gap-2">
+                <div class="bg-black/85 backdrop-blur-md border border-white/10 px-4 py-3 rounded-xl shadow-2xl text-[11px] flex flex-col gap-1.5 font-mono max-w-[200px]">
+                    <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider border-b border-white/5 pb-1 mb-1">
+                        Legends
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-cyber-pink shadow-glow-pink"></span>
+                        <span class="text-gray-300 font-bold">High Severity</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-cyber-neonYellow shadow-glow-yellow"></span>
+                        <span class="text-gray-300 font-bold">Medium Severity</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-cyber-neonGreen shadow-glow-green"></span>
+                        <span class="text-gray-300 font-bold">Simulated Mock</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- CORE MAP & DATA INTEGRATION SCRIPTS -->
+    <script>
+        const state = {
+            backendUrl: '',
+            username: '',
+            map: null,
+            markersGroup: null,
+            potholes: [],
+            
+            // UI elements
+            apiPill: document.getElementById('api-status-pill'),
+            apiDot: document.getElementById('api-status-dot'),
+            apiText: document.getElementById('api-status-text'),
+            statTotal: document.getElementById('stat-total'),
+            statSimulated: document.getElementById('stat-simulated'),
+            statHigh: document.getElementById('stat-high'),
+            statMedium: document.getElementById('stat-medium'),
+            feedContainer: document.getElementById('history-feed-container'),
+            feedPlaceholder: document.getElementById('history-placeholder')
+        };
+
+        // Initialize Map
+        function initMap() {
+            state.map = L.map('history-map', {
+                zoomControl: false
+            }).setView([19.15, 72.95], 11);
+
+            L.control.zoom({
+                position: 'bottomleft'
+            }).addTo(state.map);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 20
+            }).addTo(state.map);
+
+            state.markersGroup = L.layerGroup().addTo(state.map);
+        }
+
+        // Custom radar pulse markers
+        function getCustomMarker(lat, lng, severity, isSimulated, popupHtml) {
+            let color = '#FFD700'; // Default gold
+            let glow = 'shadow-glow-yellow';
+
+            if (isSimulated) {
+                color = '#39FF14'; // Neon Green
+                glow = 'shadow-glow-green';
+            } else if (severity === 'High') {
+                color = '#FF4B72'; // Pink
+                glow = 'shadow-glow-pink';
+            }
+
+            const icon = L.divIcon({
+                className: 'custom-sonar-marker',
+                html: `
+                    <div class="relative flex items-center justify-center w-6 h-6">
+                        <span class="animate-ping absolute inline-flex h-4 w-4 rounded-full opacity-60" style="background-color: ${color}"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 border-2 border-white shadow-xl ${glow}" style="background-color: ${color}"></span>
+                    </div>
+                `,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            return L.marker([lat, lng], { icon: icon }).bindPopup(popupHtml);
+        }
+
+        // Fetch user data from backend and localStorage
+        async function fetchUserTelemetry() {
+            setApiStatus('polling');
+            
+            const endpoint = `${state.backendUrl}/api/history/${state.username}`;
+            let serverHistory = [];
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: { 
+                        'Accept': 'application/json',
+                        'ngrok-skip-browser-warning': '69420'
+                    }
+                });
+                
+                if (response.ok) {
+                    serverHistory = await response.json();
+                    setApiStatus('online');
+                } else {
+                    throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+                }
+            } catch (e) {
+                console.error("[SERVER TELEMETRY ERROR] Fetch failed. Details:", e);
+                setApiStatus('offline');
+            }
+
+            // Combine with local simulated history
+            const simKey = `roadguard_sim_history_${state.username}`;
+            const simHistory = JSON.parse(localStorage.getItem(simKey)) || [];
+
+            // Standardize server coordinates properties
+            const serverPotholes = serverHistory.map(p => ({
+                id: p.id,
+                lat: p.lat,
+                lng: p.lng,
+                severity: p.severity,
+                timestamp: p.timestamp,
+                detection_count: p.detection_count,
+                simulated: false
+            }));
+
+            // Standardize simulated coordinates properties
+            const simulatedPotholes = simHistory.map(p => ({
+                id: p.id,
+                lat: p.lat,
+                lng: p.lng,
+                severity: p.severity,
+                timestamp: p.timestamp,
+                detection_count: p.detection_count,
+                simulated: true
+            }));
+
+            // Combine both maps
+            state.potholes = [...serverPotholes, ...simulatedPotholes];
+            
+            // Sort by newest timestamp first
+            state.potholes.sort((a, b) => b.timestamp - a.timestamp);
+
+            renderHistoryListAndMap();
+        }
+
+        function renderHistoryListAndMap() {
+            state.markersGroup.clearLayers();
+            state.feedContainer.innerHTML = '';
+
+            const list = state.potholes;
+            
+            // Statistics calculations
+            const total = list.length;
+            const simulated = list.filter(p => p.simulated).length;
+            const high = list.filter(p => p.severity === 'High').length;
+            const medium = list.filter(p => p.severity === 'Medium').length;
+
+            state.statTotal.innerText = total;
+            state.statSimulated.innerText = simulated;
+            state.statHigh.innerText = high;
+            state.statMedium.innerText = medium;
+
+            if (total === 0) {
+                state.feedContainer.appendChild(state.feedPlaceholder);
+                state.feedPlaceholder.innerHTML = `
+                    <i class="fa-solid fa-folder-open text-2xl text-cyber-border py-4"></i>
+                    <span class="text-xs">No coordinates mapped yet for rider: ${state.username}</span>
+                `;
+                return;
+            }
+
+            // Pin all entries on the map and populate side panel
+            list.forEach(pothole => {
+                const { id, lat, lng, severity, timestamp, detection_count, simulated } = pothole;
+                const timeStr = new Date(timestamp * 1000).toLocaleString();
+
+                // Format Popup
+                const popupContent = `
+                    <div class="p-2 flex flex-col gap-1.5 max-w-[220px] leading-relaxed font-sans text-xs">
+                        <div class="flex items-center justify-between border-b border-white/5 pb-1 mb-1">
+                            <span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Personal Entry</span>
+                            <span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                                simulated 
+                                    ? 'bg-green-500/20 text-cyber-neonGreen border border-green-500/30'
+                                    : severity === 'High' 
+                                        ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+                                        : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                            }">${simulated ? 'SIMULATED' : severity}</span>
+                        </div>
+                        <div><span class="text-gray-500">Node ID:</span> <code class="bg-black/30 px-1 py-0.5 rounded font-mono text-[10px] text-gray-300 font-bold">${id}</code></div>
+                        <div><span class="text-gray-500">Uplink hits:</span> <span class="font-bold text-gray-300">${detection_count} detections</span></div>
+                        <div><span class="text-gray-500">GPS:</span> <span class="font-mono text-gray-300">${lat.toFixed(5)}, ${lng.toFixed(5)}</span></div>
+                        <div class="text-[9px] text-gray-500 mt-1 border-t border-white/5 pt-1.5"><i class="fa-solid fa-clock"></i> ${timeStr}</div>
+                    </div>
+                `;
+
+                // Add to Leaflet markers group
+                const marker = getCustomMarker(lat, lng, severity, simulated, popupContent);
+                state.markersGroup.addLayer(marker);
+
+                // Add list card item
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border border-cyber-border bg-[#101018]/50 hover:bg-[#141422] hover:border-white/10 transition-all duration-200 cursor-pointer flex flex-col gap-1 ${
+                    simulated 
+                        ? 'border-l-4 border-l-cyber-neonGreen'
+                        : severity === 'High' 
+                            ? 'border-l-4 border-l-cyber-pink' 
+                            : 'border-l-4 border-l-cyber-neonYellow'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-gray-500">NODE ID: ${id}</span>
+                        <span class="text-[9px] text-gray-400 font-bold">${new Date(timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                    <div class="text-xs text-gray-300 font-semibold truncate flex items-center justify-between">
+                        <span>GPS Coordinates:</span>
+                        <span class="text-gray-400 font-mono">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>
+                    </div>
+                    <div class="text-[10px] text-gray-500 flex justify-between mt-1 items-center">
+                        <span class="text-[9px] font-bold text-cyber-accent uppercase tracking-wider">${simulated ? 'SIMULATOR MODE' : 'EDGE CLIENT UPLINK'}</span>
+                        <span class="text-[9px] font-bold ${simulated ? 'text-cyber-neonGreen' : severity === 'High' ? 'text-cyber-pink' : 'text-cyber-neonYellow'}">[${simulated ? 'SIM' : severity}]</span>
+                    </div>
+                `;
+
+                card.addEventListener('click', () => {
+                    state.map.flyTo([lat, lng], 15, { duration: 1.2 });
+                    setTimeout(() => marker.openPopup(), 1250);
+                });
+
+                state.feedContainer.appendChild(card);
+            });
+
+            // Smart Auto centering to the first pothole mapped if available!
+            if (list.length > 0) {
+                const first = list[0];
+                state.map.setView([first.lat, first.lng], 13);
+            }
+        }
+
+        // Set API Pill Indicators
+        function setApiStatus(status) {
+            if (status === 'online') {
+                state.apiPill.className = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-950/40 text-cyber-neonGreen border border-cyber-neonGreen/30 shadow-glow-green";
+                state.apiDot.className = "w-2 h-2 rounded-full bg-cyber-neonGreen animate-pulse";
+                state.apiText.innerText = "GATEWAY CONNECTED";
+            } else if (status === 'polling') {
+                state.apiPill.className = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-950/40 text-cyber-neonCyan border border-cyber-neonCyan/30";
+                state.apiDot.className = "w-2 h-2 rounded-full bg-cyber-neonCyan animate-spin";
+                state.apiText.innerText = "INGESTING...";
+            } else {
+                state.apiPill.className = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-950/40 text-red-400 border border-red-500/20";
+                state.apiDot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
+                state.apiText.innerText = "GATEWAY OFFLINE";
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            state.username = localStorage.getItem('userId');
+            if (!state.username) {
+                window.location.href = 'index.html';
+                return;
+            }
+            document.getElementById('header-username').innerText = state.username;
+
+            state.backendUrl = localStorage.getItem('roadguard_backend_url') || window.location.origin;
+
+            initMap();
+            fetchUserTelemetry();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid h-100 d-flex flex-column">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-6 fw-bold text-white mb-2">Historical Analytics</h1>
+            <p class="text-white-50">Review your past mapping operations and route safety scores.</p>
+        </div>
+    </div>
+
+    <div class="row flex-grow-1">
+        <!-- Trip List Sidebar -->
+        <div class="col-lg-4" style="height: 70vh; overflow-y: auto;">
+            <div id="tripList" class="d-flex flex-column gap-3">
+                <div class="text-center p-5 text-secondary">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x mb-3"></i>
+                    <p>Loading Historical Trips...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mini-Map Viewer -->
+        <div class="col-lg-8 h-100">
+            <div class="glass-panel p-0 h-100 position-relative" style="border-radius: 12px; overflow: hidden;">
+                <div id="miniMap" style="height: 100%; width: 100%;"></div>
+                
+                <div id="noTripSelected" class="position-absolute top-50 start-50 translate-middle text-center" style="z-index: 1000;">
+                    <i class="fa-solid fa-map-location-dot text-secondary mb-3" style="font-size: 3rem;"></i>
+                    <h5 class="text-white">Select a Trip</h5>
+                    <p class="text-white-50">Click a trip card to draw its route</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .trip-card {
+        background: rgba(26, 26, 36, 0.45);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-left: 4px solid var(--primary-pink);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .trip-card:hover, .trip-card.active {
+        background: rgba(255, 75, 114, 0.1);
+        transform: translateX(5px);
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let miniMap;
+    let currentPolyline;
+    let startMarker, endMarker;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Init Leaflet Mini-Map
+        miniMap = L.map('miniMap', { zoomControl: false }).setView([18.5204, 73.8567], 13);
+        L.control.zoom({ position: 'topright' }).addTo(miniMap);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(miniMap);
+        
+        loadTrips();
+    });
+
+    function loadTrips() {
+        fetch('/api/trips')
+        .then(res => res.json())
+        .then(trips => {
+            const listDiv = document.getElementById('tripList');
+            if (trips.length === 0) {
+                listDiv.innerHTML = `
+                    <div class="glass-panel p-4 text-center">
+                        <i class="fa-solid fa-car-side text-secondary mb-3 fa-2x"></i>
+                        <h6 class="text-white">No Trips Recorded</h6>
+                        <p class="text-white-50 small mb-0">Start a drive on the map to generate data.</p>
+                        <a href="/map" class="btn btn-sm btn-outline-pink mt-3">Go to Map</a>
+                    </div>`;
+                return;
+            }
+
+            listDiv.innerHTML = '';
+            // Sort newest first
+            trips.sort((a, b) => b.timestamp - a.timestamp).forEach(trip => {
+                const date = new Date(trip.timestamp * 1000).toLocaleString();
+                
+                const card = document.createElement('div');
+                card.className = "glass-panel p-3 trip-card";
+                card.onclick = () => drawTrip(trip, card);
+                
+                card.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-white mb-0 fw-bold"><i class="fa-solid fa-route me-2 text-pink"></i>${trip.trip_id}</h6>
+                        <span class="badge bg-dark border border-secondary">${trip.distance_traveled}</span>
+                    </div>
+                    <div class="text-white-50 small mb-3"><i class="fa-regular fa-clock me-1"></i>${date}</div>
+                    
+                    <div class="row g-2 text-center mt-2">
+                        <div class="col-6">
+                            <div class="bg-dark rounded p-2 border border-secondary">
+                                <div class="text-white-50" style="font-size: 0.65rem; text-transform: uppercase;">Total Potholes</div>
+                                <div class="text-white fw-bold">${trip.total_potholes}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-dark rounded p-2 border border-danger">
+                                <div class="text-danger" style="font-size: 0.65rem; text-transform: uppercase;">Alerts Sent</div>
+                                <div class="text-white fw-bold">${trip.high_severity_alerts}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                listDiv.appendChild(card);
+            });
+        });
+    }
+
+    function drawTrip(trip, cardElement) {
+        // Highlight active card
+        document.querySelectorAll('.trip-card').forEach(c => c.classList.remove('active'));
+        cardElement.classList.add('active');
+        
+        document.getElementById('noTripSelected').style.display = 'none';
+
+        // Clear previous drawings
+        if (currentPolyline) miniMap.removeLayer(currentPolyline);
+        if (startMarker) miniMap.removeLayer(startMarker);
+        if (endMarker) miniMap.removeLayer(endMarker);
+
+        const coords = trip.route_coordinates;
+        if (!coords || coords.length === 0) return;
+
+        // Draw Polyline
+        currentPolyline = L.polyline(coords, { color: '#FF4B72', weight: 5, opacity: 0.8 }).addTo(miniMap);
+        miniMap.fitBounds(currentPolyline.getBounds(), { padding: [50, 50] });
+
+        // Markers for Start and End
+        const startIcon = L.divIcon({ html: `<div style="background: #4CAF50; width:12px; height:12px; border-radius:50%; border:2px solid white;"></div>`, className: ''});
+        const endIcon = L.divIcon({ html: `<div style="background: #F44336; width:12px; height:12px; border-radius:50%; border:2px solid white;"></div>`, className: ''});
+
+        startMarker = L.marker(coords[0], {icon: startIcon}).addTo(miniMap).bindPopup("Start");
+        endMarker = L.marker(coords[coords.length - 1], {icon: endIcon}).addTo(miniMap).bindPopup("End");
+    }
+</script>
+{% endblock %}

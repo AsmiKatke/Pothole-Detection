@@ -1,0 +1,246 @@
+:root {
+    --primary-pink: #FF4B72;
+    --dark-bg: #0B0C10; /* Deep Charcoal Base */
+    --panel-bg: rgba(26, 26, 36, 0.45);
+    --glass-border: rgba(255, 255, 255, 0.08);
+    --text-color: #E0E2E6;
+    --sidebar-width: 260px;
+    --gradient-bg: radial-gradient(circle at top right, #1A1A24 0%, #0B0C10 70%);
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text-color);
+    background: var(--gradient-bg);
+    background-attachment: fixed;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* 3D Background Canvas container */
+#three-canvas-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.6; /* More subtle for Replica vibe */
+}
+
+/* Glassmorphism 2.0 Utilities */
+.glass-panel {
+    background: var(--panel-bg);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Subtle glow effect for panels */
+.glass-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0) 100%);
+    transform: skewX(-20deg);
+    transition: 0.5s;
+    pointer-events: none;
+}
+.glass-panel:hover::before {
+    left: 150%;
+}
+
+.text-pink { color: var(--primary-pink) !important; }
+
+/* Sidebar Styling */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--sidebar-width);
+    height: 100vh;
+    padding: 2.5rem 1.5rem;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    border-radius: 0 24px 24px 0;
+    border-left: none;
+}
+
+.sidebar .brand {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    margin-bottom: 3.5rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sidebar .brand i {
+    color: var(--primary-pink);
+}
+
+.sidebar-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-nav li {
+    margin-bottom: 0.8rem;
+}
+
+.sidebar-nav a {
+    display: flex;
+    align-items: center;
+    padding: 0.9rem 1.2rem;
+    color: #A0A5B5;
+    text-decoration: none;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.sidebar-nav a:hover, .sidebar-nav a.active {
+    background: rgba(255, 75, 114, 0.1);
+    color: #fff;
+    border-left: 3px solid var(--primary-pink);
+    border-radius: 4px 10px 10px 4px;
+}
+
+.sidebar-nav a i {
+    margin-right: 12px;
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+}
+
+/* Main Content Area */
+.main-content {
+    margin-left: var(--sidebar-width);
+    padding: 3rem;
+    min-height: 100vh;
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    letter-spacing: -0.5px;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary-pink); }
+
+/* Footer Credits */
+.credits {
+    margin-top: auto;
+    font-size: 0.75rem;
+    color: #6B7280;
+    border-top: 1px solid var(--glass-border);
+    padding-top: 1.5rem;
+    line-height: 1.6;
+}
+
+/* Specific Component Styles */
+.stat-card {
+    padding: 1.8rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px 0 rgba(0, 0, 0, 0.6);
+}
+.stat-card h3 { font-size: 2.2rem; margin-top: 10px; }
+.stat-card p { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: #8B92A5; }
+
+/* Video HUD Overlay */
+.video-container {
+    position: relative;
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #000;
+    border: 1px solid var(--glass-border);
+}
+.video-container img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+.hud-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.hud-element {
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85rem;
+    display: inline-block;
+}
+
+/* Map Container */
+#map {
+    height: 650px;
+    width: 100%;
+    border-radius: 12px;
+    z-index: 1;
+}
+
+/* Wizard Steps */
+.wizard-step { display: none; animation: fadeIn 0.4s ease; }
+.wizard-step.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+.upload-box {
+    border: 2px dashed rgba(255, 75, 114, 0.4);
+    background: rgba(255, 75, 114, 0.05);
+    padding: 40px;
+    text-align: center;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+.upload-box:hover {
+    background: rgba(255, 75, 114, 0.1);
+    border-color: var(--primary-pink);
+}
+
+.btn-pink {
+    background: var(--primary-pink);
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: 0.3s;
+}
+.btn-pink:hover {
+    background: #FF2A58;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 75, 114, 0.4);
+}

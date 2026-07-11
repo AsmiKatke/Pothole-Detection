@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoadGuard Command Center - Admin Dashboard</title>
+    <!-- Google Fonts: Outfit (UI) and JetBrains Mono (Telemetry logs) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Leaflet.js Mapping Library CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        cyber: {
+                            bg: '#08080C',
+                            card: '#12121A',
+                            border: '#1F1F2E',
+                            accent: '#45A29E',
+                            pink: '#FF4B72',
+                            neonGreen: '#39FF14',
+                            neonYellow: '#FFD700',
+                            neonCyan: '#00F0FF',
+                        }
+                    },
+                    boxShadow: {
+                        'glow-pink': '0 0 15px rgba(255, 75, 114, 0.4)',
+                        'glow-cyan': '0 0 15px rgba(0, 240, 255, 0.4)',
+                        'glow-green': '0 0 15px rgba(57, 255, 20, 0.4)',
+                        'glow-yellow': '0 0 15px rgba(255, 215, 0, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Glassmorphism panel styling */
+        .glass-panel {
+            background: rgba(18, 18, 26, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .glow-border-pink {
+            border-bottom: 2px solid #FF4B72;
+            box-shadow: 0 4px 15px -3px rgba(255, 75, 114, 0.3);
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #08080C;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1F1F2E;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #FF4B72;
+        }
+        /* Custom popup stylings for Leaflet */
+        .leaflet-popup-content-wrapper {
+            background: #12121A !important;
+            color: #E2E8F0 !important;
+            border: 1px solid #1F1F2E !important;
+            border-radius: 12px !important;
+            padding: 4px !important;
+            font-family: 'Outfit', sans-serif !important;
+        }
+        .leaflet-popup-tip {
+            background: #12121A !important;
+            border: 1px solid #1F1F2E !important;
+        }
+        /* Pulse Animation overlay */
+        .pulse-slow {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .4; }
+        }
+    </style>
+</head>
+<body class="bg-cyber-bg text-gray-200 font-sans min-h-screen flex flex-col selection:bg-cyber-pink selection:text-white overflow-hidden">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="w-full glass-panel sticky top-0 z-40 glow-border-pink px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-cyber-pink to-cyber-neonCyan flex items-center justify-center text-white font-bold shadow-glow-pink">
+                <i class="fa-solid fa-tower-radar text-base"></i>
+            </div>
+            <div>
+                <h1 class="text-base md:text-lg font-black tracking-tight flex items-center gap-2">
+                    <span>ROADGUARD COMMAND CENTER</span> 
+                    <span class="hidden sm:inline text-xs text-gray-500 font-medium tracking-wide">|</span>
+                    <span class="hidden sm:inline text-xs text-cyber-pink font-semibold">Administered by Asmi, Anushka & Sneha</span>
+                </h1>
+                <p class="text-[9px] text-gray-500 font-medium tracking-widest uppercase">Crowdsourced Infrastructure Safety Portal</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <!-- PING/API STATUS INDICATOR -->
+            <div id="api-status-pill" class="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-950/40 text-red-400 border border-red-500/20">
+                <span id="api-status-dot" class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                <span id="api-status-text" class="font-mono text-[9px] uppercase tracking-wider">CONN OFFLINE</span>
+            </div>
+
+            <!-- SETTINGS BUTTON -->
+            <button id="btn-settings" class="w-9 h-9 flex items-center justify-center rounded-lg bg-cyber-card border border-cyber-border text-gray-400 hover:text-white hover:border-cyber-pink transition-all duration-300 shadow-sm">
+                <i class="fa-solid fa-gear"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN BODY GRID LAYOUT -->
+    <main class="flex-grow flex flex-col md:flex-row w-full max-w-[1920px] mx-auto p-4 gap-4 overflow-hidden h-[calc(100vh-68px)]">
+        
+        <!-- LEFT PANEL: STATS & LIVE LOGGER FEED -->
+        <section class="w-full md:w-1/4 flex flex-col gap-4 h-full overflow-hidden shrink-0">
+            
+            <!-- CORE ANALYTICS MATRIX -->
+            <div class="grid grid-cols-2 gap-2">
+                <!-- TOTAL DETECTED -->
+                <div class="glass-panel rounded-xl p-3 border border-cyber-border flex flex-col justify-between hover:border-white/10 transition duration-300">
+                    <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Total Spotted</span>
+                    <div class="mt-2 flex items-baseline gap-1">
+                        <span id="stat-total" class="text-3xl font-extrabold text-white font-mono tracking-tight">0</span>
+                        <span class="text-[10px] text-gray-500 font-semibold">nodes</span>
+                    </div>
+                </div>
+                
+                <!-- UNIQUE CONTRIBUTORS -->
+                <div class="glass-panel rounded-xl p-3 border border-cyber-border flex flex-col justify-between hover:border-white/10 transition duration-300">
+                    <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Active Riders</span>
+                    <div class="mt-2 flex items-baseline gap-1">
+                        <span id="stat-riders" class="text-3xl font-extrabold text-white font-mono tracking-tight">0</span>
+                        <span class="text-[10px] text-gray-500 font-semibold">users</span>
+                    </div>
+                </div>
+
+                <!-- HIGH SEVERITY -->
+                <div class="glass-panel rounded-xl p-3 border border-cyber-border flex flex-col justify-between hover:border-cyber-pink/30 transition duration-300 group">
+                    <span class="text-[10px] text-red-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-cyber-pink"></span> High Severity
+                    </span>
+                    <div class="mt-2 flex items-baseline gap-1">
+                        <span id="stat-high" class="text-3xl font-extrabold text-white font-mono tracking-tight group-hover:text-cyber-pink transition duration-300">0</span>
+                        <span class="text-[10px] text-gray-500 font-semibold">critical</span>
+                    </div>
+                </div>
+
+                <!-- MEDIUM SEVERITY -->
+                <div class="glass-panel rounded-xl p-3 border border-cyber-border flex flex-col justify-between hover:border-cyber-neonYellow/30 transition duration-300 group">
+                    <span class="text-[10px] text-cyber-neonYellow font-bold uppercase tracking-wider flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-cyber-neonYellow"></span> Medium Severity
+                    </span>
+                    <div class="mt-2 flex items-baseline gap-1">
+                        <span id="stat-medium" class="text-3xl font-extrabold text-white font-mono tracking-tight group-hover:text-cyber-neonYellow transition duration-300">0</span>
+                        <span class="text-[10px] text-gray-500 font-semibold">medium</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LIVE CROWD TELEMETRY LOGGER FEED -->
+            <div class="glass-panel rounded-2xl p-4 border border-cyber-border flex flex-col flex-grow overflow-hidden relative shadow-2xl">
+                <div class="flex items-center justify-between pb-3 border-b border-cyber-border mb-3">
+                    <h2 class="text-xs font-black tracking-wider text-gray-400 uppercase flex items-center gap-2">
+                        <i class="fa-solid fa-satellite text-cyber-pink animate-pulse"></i>
+                        <span>Live crowdsourcing uplink</span>
+                    </h2>
+                    <span class="text-[9px] text-cyber-neonGreen bg-cyber-neonGreen/10 border border-cyber-neonGreen/20 px-1.5 py-0.5 rounded font-mono font-bold animate-pulse">AUTO_POLL</span>
+                </div>
+                
+                <!-- Scrollable logger list -->
+                <div id="logger-feed-container" class="flex-grow overflow-y-auto flex flex-col gap-2 pr-1 font-mono text-[11px] leading-relaxed">
+                    <!-- Placeholder initial loader state -->
+                    <div id="logger-placeholder" class="text-center py-12 text-gray-500 flex flex-col items-center gap-3">
+                        <i class="fa-solid fa-wave-square text-2xl text-cyber-border pulse-slow"></i>
+                        <span class="text-xs font-semibold">Waiting for telemetry ingestion...</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL: INTERACTIVE VIEWPORTS & TAB SWITCHES -->
+        <section class="flex-grow md:w-3/4 h-full rounded-2xl border border-cyber-border overflow-hidden shadow-2xl relative flex flex-col">
+            
+            <!-- Premium Tab Headers -->
+            <div class="glass-panel border-b border-cyber-border p-2.5 flex items-center justify-between z-20 select-none">
+                <div class="flex gap-2 bg-black/60 p-1 rounded-xl border border-cyber-border">
+                    <button id="tab-map" class="px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all duration-300 bg-cyber-pink text-white shadow-glow-pink flex items-center gap-2">
+                        <i class="fa-solid fa-map-location-dot"></i>
+                        <span>Interactive Map</span>
+                    </button>
+                    <button id="tab-analytics" class="px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all duration-300 text-gray-400 hover:text-white hover:bg-white/5 flex items-center gap-2">
+                        <i class="fa-solid fa-ranking-star"></i>
+                        <span>Rider Leaderboard</span>
+                    </button>
+                    <button id="tab-admin" class="px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all duration-300 text-gray-400 hover:text-white hover:bg-white/5 flex items-center gap-2">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <span>User Management</span>
+                    </button>
+                </div>
+                <span class="text-[10px] text-gray-500 font-mono tracking-wider">COMMAND HUD v4.0</span>
+            </div>
+
+            <!-- Tab Content Area -->
+            <div class="relative flex-grow overflow-hidden bg-[#08080C]">
+                
+                <!-- Map Tab Container -->
+                <div id="tab-content-map" class="absolute inset-0 z-10">
+                    <div id="leaflet-map" class="w-full h-full bg-[#08080C]"></div>
+                    
+                    <!-- Overlay diagnostic radar details -->
+                    <div class="absolute bottom-6 right-6 z-20 pointer-events-none flex flex-col gap-2">
+                        <div class="bg-black/85 backdrop-blur-md border border-white/10 px-4 py-3 rounded-xl shadow-2xl text-[11px] flex flex-col gap-1.5 font-mono max-w-[200px]">
+                            <div class="text-[10px] text-gray-500 font-bold uppercase tracking-wider border-b border-white/5 pb-1 mb-1 flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-nodes text-cyber-pink"></i> Map Legends
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-cyber-pink shadow-glow-pink"></span>
+                                <span class="text-gray-300 font-bold">Critical High</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-cyber-neonYellow shadow-glow-yellow"></span>
+                                <span class="text-gray-300 font-bold">Medium Threat</span>
+                            </div>
+                            <div class="text-[9px] text-gray-500 mt-1 border-t border-white/5 pt-1.5">
+                                Pulse nodes represent active geolocations submitted.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leaderboard Tab Container -->
+                <div id="tab-content-analytics" class="absolute inset-0 z-10 hidden overflow-y-auto p-6 flex flex-col gap-4 bg-[#08080C]">
+                    <!-- Leaderboard Heading -->
+                    <div class="flex flex-col gap-1 mb-2">
+                        <h3 class="text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-trophy text-cyber-pink animate-bounce"></i>
+                            <span>RoadGuard Global Contributor Standings</span>
+                        </h3>
+                        <p class="text-xs text-gray-400">Real-time crowdsourced telemetry leaderboard tracking pothole detections and active road safety mappings.</p>
+                    </div>
+
+                    <!-- Leaderboard Table Card -->
+                    <div class="glass-panel rounded-2xl border border-cyber-border overflow-hidden shadow-2xl">
+                        <div class="overflow-x-auto w-full">
+                            <table class="table-auto w-full border-collapse font-sans text-left text-xs">
+                                <thead>
+                                    <tr class="border-b border-cyber-border bg-[#101018]/80 text-gray-400 font-bold uppercase tracking-wider text-[10px]">
+                                        <th class="py-3.5 px-6">Rank</th>
+                                        <th class="py-3.5 px-6">Rider Username</th>
+                                        <th class="py-3.5 px-6">Total Detections</th>
+                                        <th class="py-3.5 px-6">Latest Mapping Coordinate</th>
+                                        <th class="py-3.5 px-6">Last Active Timestamp</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leaderboard-tbody" class="divide-y divide-cyber-border bg-[#0b0b10]/40">
+                                    <!-- Dynamically generated via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Management Tab Container -->
+                <div id="tab-content-admin" class="absolute inset-0 z-10 hidden overflow-y-auto p-6 flex flex-col gap-4 bg-[#08080C]">
+                    <!-- Admin User Management Heading -->
+                    <div class="flex flex-col gap-1 mb-2">
+                        <h3 class="text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-user-gear text-cyber-pink"></i>
+                            <span>Admin User Management</span>
+                        </h3>
+                        <p class="text-xs text-gray-400">Manage active system contributors, view aggregate pothole reporting statistics, and selectively purge user profiles and telemetry records.</p>
+                    </div>
+
+                    <!-- Admin Table Card -->
+                    <div class="glass-panel rounded-2xl border border-cyber-border overflow-hidden shadow-2xl">
+                        <div class="overflow-x-auto w-full">
+                            <table class="table-auto w-full border-collapse font-sans text-left text-xs">
+                                <thead>
+                                    <tr class="border-b border-cyber-border bg-[#101018]/80 text-gray-400 font-bold uppercase tracking-wider text-[10px]">
+                                        <th class="py-3.5 px-6">Rider ID</th>
+                                        <th class="py-3.5 px-6">Total Potholes Reported</th>
+                                        <th class="py-3.5 px-6">Latest GPS</th>
+                                        <th class="py-3.5 px-6 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-tbody" class="divide-y divide-cyber-border bg-[#0b0b10]/40">
+                                    <!-- Dynamically generated via JS -->
+                                    <tr>
+                                        <td colspan="4" class="py-8 text-center text-gray-500 font-semibold">
+                                            <i class="fa-solid fa-spinner animate-spin text-xl mb-2 block text-cyber-pink"></i>
+                                            Loading user records...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- SETTINGS MODAL -->
+    <div id="modal-settings" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl border border-cyber-border w-full max-w-md overflow-hidden shadow-2xl relative animate-[fadeIn_0.2s_ease-out]">
+            <div class="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-cyber-pink to-cyber-neonCyan"></div>
+            
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-cyber-border flex justify-between items-center">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-gears text-cyber-pink text-lg animate-spin-slow"></i>
+                    <h3 class="text-sm font-black text-white uppercase tracking-wider">Admin System Setup</h3>
+                </div>
+                <button id="modal-close" class="text-gray-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="p-5 flex flex-col gap-4">
+                
+                <!-- API URL Settings -->
+                <div>
+                    <label for="input-api-url" class="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Crowdsourcing API Gateway URL</label>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
+                            <i class="fa-solid fa-globe text-sm"></i>
+                        </span>
+                        <input id="input-api-url" type="url" placeholder="e.g. https://xxxx.ngrok-free.app or http://127.0.0.1:5000" class="w-full bg-[#0d0d14] border border-cyber-border rounded-xl py-3 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-cyber-pink focus:ring-1 focus:ring-cyber-pink transition-all duration-300 font-mono">
+                    </div>
+                    <p class="text-[10px] text-gray-500 leading-relaxed mt-2">
+                        Point this to your local running Flask/Ngrok backend link. The admin client uses this gateway to request `/api/potholes` data.
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-5 border-t border-cyber-border bg-[#0d0d14]/50 flex justify-end gap-2">
+                <button id="btn-save-settings" class="px-5 py-2.5 rounded-xl bg-cyber-pink text-white font-bold text-xs uppercase hover:bg-cyber-pink/90 active:scale-95 transition-all duration-200 shadow-glow-pink">
+                    Apply Config
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CORE ADMIN MAP IMPLEMENTATION SCRIPTS -->
+    <script>
+        // --- CONSTANTS AND STATE MATRIX ---
+        const CONFIG = {
+            API_URL_KEY: 'roadguard_backend_url',
+            POLLING_INTERVAL: 10000 // 10 seconds
+        };
+
+        const state = {
+            backendUrl: '',
+            map: null,
+            markersGroup: null,
+            potholesList: [],
+            pollingIntervalId: null,
+
+            // UI elements
+            apiPill: document.getElementById('api-status-pill'),
+            apiDot: document.getElementById('api-status-dot'),
+            apiText: document.getElementById('api-status-text'),
+            settingsBtn: document.getElementById('btn-settings'),
+            settingsModal: document.getElementById('modal-settings'),
+            closeModalBtn: document.getElementById('modal-close'),
+            saveSettingsBtn: document.getElementById('btn-save-settings'),
+            inputApiUrl: document.getElementById('input-api-url'),
+
+            // Stat readouts
+            statTotal: document.getElementById('stat-total'),
+            statRiders: document.getElementById('stat-riders'),
+            statHigh: document.getElementById('stat-high'),
+            statMedium: document.getElementById('stat-medium'),
+            loggerContainer: document.getElementById('logger-feed-container'),
+            loggerPlaceholder: document.getElementById('logger-placeholder'),
+        };
+
+        // --- MAP INITIALIZATION (LEAFLET.JS) ---
+        function initLeafletMap() {
+            // Default center coordinates: Mumbai and Thane (19.15, 72.95), zoom 11
+            state.map = L.map('leaflet-map', {
+                zoomControl: false // Disable standard zoom layout to keep HUD clean
+            }).setView([19.15, 72.95], 11);
+
+            // Append standard Leaflet zoom scale controls at the bottom left
+            L.control.zoom({
+                position: 'bottomleft'
+            }).addTo(state.map);
+
+            // Dark-themed tile layer (CartoDB Dark Matter)
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 20
+            }).addTo(state.map);
+
+            // Add clearable markers layer group
+            state.markersGroup = L.layerGroup().addTo(state.map);
+        }
+
+        // --- CUSTOM RADAR PULSING MARKERS ---
+        function createCustomMarker(lat, lng, severity, popupContent) {
+            const isHigh = severity === 'High';
+            const color = isHigh ? '#FF4B72' : '#FFD700'; // pink/red or gold/yellow
+            const glowClass = isHigh ? 'shadow-glow-pink' : 'shadow-glow-yellow';
+
+            const radarIcon = L.divIcon({
+                className: 'custom-radar-marker',
+                html: `
+                    <div class="relative flex items-center justify-center w-6 h-6">
+                        <span class="animate-ping absolute inline-flex h-4 w-4 rounded-full opacity-60" style="background-color: ${color}"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 border-2 border-white shadow-xl ${glowClass}" style="background-color: ${color}"></span>
+                    </div>
+                `,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            return L.marker([lat, lng], { icon: radarIcon }).bindPopup(popupContent);
+        }
+
+        // --- PING HEALTH TO VERIFY UPLINK ---
+        async function pingApiHealth() {
+            const gatewayUrl = state.backendUrl || window.location.origin;
+            const endpoint = `${gatewayUrl}/api/health`;
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: { 
+                        'Accept': 'application/json',
+                        'ngrok-skip-browser-warning': '69420'
+                    }
+                });
+                if (response.ok) {
+                    setApiStatus('online');
+                    return true;
+                } else {
+                    throw new Error(`HTTP status ${response.status}: ${response.statusText}`);
+                }
+            } catch (err) {
+                console.error("[HEALTH PING ERROR] Failed to ping /api/health. Details:", err);
+                setApiStatus('offline');
+                return false;
+            }
+        }
+
+        // --- REAL-TIME DATA INGESTION (POLLING) ---
+        async function fetchCrowdsourcedData() {
+            setApiStatus('polling');
+
+            const gatewayUrl = state.backendUrl || window.location.origin;
+            const endpoint = `${gatewayUrl}/api/potholes`;
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: { 
+                        'Accept': 'application/json',
+                        'ngrok-skip-browser-warning': '69420'
+                    }
+                });
+
+                if (!response.ok) throw new Error(`HTTP error status ${response.status}: ${response.statusText}`);
+                
+                const data = await response.json();
+                state.potholesList = Array.isArray(data) ? data : [];
+                
+                setApiStatus('online');
+                renderMapMarkers();
+                updateDashboardAnalytics();
+            } catch (err) {
+                console.error("[GATEWAY INGESTION ERROR] Fetch failed. Details:", err);
+                setApiStatus('offline');
+            }
+        }
+
+        // --- RENDER GEOLOCATION MARKERS ON MAP ---
+        function renderMapMarkers() {
+            // 1. Clear old marker models from map
+            state.markersGroup.clearLayers();
+
+            if (state.potholesList.length === 0) return;
+
+            // 2. Loop and map fresh coordinate entries
+            state.potholesList.forEach(pothole => {
+                const { lat, lng, severity, id, timestamp, rider_id, detection_count, image_data } = pothole;
+                
+                if (lat === null || lng === null) return;
+
+                const dateStr = new Date(timestamp * 1000).toLocaleString();
+
+                // Format visual evidence HTML if present
+                let imageHtml = '';
+                if (image_data) {
+                    imageHtml = `
+                        <div class="mt-2 border border-white/10 rounded-lg overflow-hidden bg-black/40">
+                            <img src="${image_data}" alt="Pothole Visual Evidence" style="max-width: 100%; border-radius: 8px; display: block; width: 100%; height: auto;">
+                        </div>
+                    `;
+                }
+
+                // Format customized popup markup
+                const popupContent = `
+                    <div class="p-2 flex flex-col gap-1.5 max-w-[220px] leading-relaxed">
+                        <div class="flex items-center justify-between border-b border-white/5 pb-1 mb-1">
+                            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Pothole Entry</span>
+                            <span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                                severity === 'High' 
+                                    ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+                                    : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                            }">${severity}</span>
+                        </div>
+                        <div class="text-[11px]"><span class="text-gray-500">ID:</span> <code class="bg-black/30 px-1 py-0.5 rounded font-mono text-[10px] text-gray-300 font-bold">${id}</code></div>
+                        <div class="text-[11px]"><span class="text-gray-500">Rider:</span> <code class="bg-black/30 px-1 py-0.5 rounded font-mono text-[10px] text-cyber-neonCyan font-bold">${rider_id}</code></div>
+                        <div class="text-[11px]"><span class="text-gray-500">Sensors:</span> <span class="font-bold text-gray-300">${detection_count} hits</span></div>
+                        <div class="text-[11px]"><span class="text-gray-500">GPS:</span> <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="font-mono text-cyber-neonCyan hover:text-cyber-pink underline transition-colors duration-200">${lat.toFixed(5)}, ${lng.toFixed(5)}</a></div>
+                        ${imageHtml}
+                        <div class="text-[9px] text-gray-500 mt-1 border-t border-white/5 pt-1.5"><i class="fa-solid fa-clock"></i> ${dateStr}</div>
+                    </div>
+                `;
+
+                // Create and insert Custom Pulse Radar Marker
+                const marker = createCustomMarker(lat, lng, severity, popupContent);
+                state.markersGroup.addLayer(marker);
+            });
+        }
+
+        // --- DASHBOARD ANALYTICS PANEL & LOGGER RENDER ---
+        function updateDashboardAnalytics() {
+            const list = state.potholesList;
+
+            // Compute statistics
+            const total = list.length;
+            const highCount = list.filter(p => p.severity === 'High').length;
+            const mediumCount = list.filter(p => p.severity === 'Medium').length;
+            
+            // Unique riders
+            const uniqueRiders = [...new Set(list.map(p => p.rider_id))].filter(Boolean);
+            const activeRidersCount = uniqueRiders.length;
+
+            // Animate number stats updates
+            animateValue(state.statTotal, parseInt(state.statTotal.innerText), total, 300);
+            animateValue(state.statHigh, parseInt(state.statHigh.innerText), highCount, 300);
+            animateValue(state.statMedium, parseInt(state.statMedium.innerText), mediumCount, 300);
+            animateValue(state.statRiders, parseInt(state.statRiders.innerText), activeRidersCount, 300);
+
+            // If the analytics tab is currently active, refresh the leaderboard grid dynamically!
+            const tabContentAnalytics = document.getElementById('tab-content-analytics');
+            if (tabContentAnalytics && !tabContentAnalytics.classList.contains('hidden')) {
+                renderLeaderboardTable();
+            }
+
+            // If the user management tab is currently active, refresh its table too
+            const tabContentAdmin = document.getElementById('tab-content-admin');
+            if (tabContentAdmin && !tabContentAdmin.classList.contains('hidden')) {
+                renderAdminTable();
+            }
+
+            // Redraw Live Crowd Logger Scroll list
+            state.loggerContainer.innerHTML = '';
+            
+            if (total === 0) {
+                state.loggerContainer.appendChild(state.loggerPlaceholder);
+                return;
+            }
+
+            // Sort by latest timestamp first for active feeds
+            const sortedList = [...list].sort((a, b) => b.timestamp - a.timestamp);
+
+            sortedList.forEach(pothole => {
+                const { lat, lng, severity, id, timestamp, rider_id } = pothole;
+                const timeStr = new Date(timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border border-cyber-border bg-[#101018]/50 hover:bg-[#141422] hover:border-white/10 transition-all duration-200 cursor-pointer flex flex-col gap-1 ${
+                    severity === 'High' ? 'border-l-4 border-l-cyber-pink' : 'border-l-4 border-l-cyber-neonYellow'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-bold text-gray-500">ID: ${id}</span>
+                        <span class="text-[9px] text-gray-400 font-bold">${timeStr}</span>
+                    </div>
+                    <div class="text-xs text-gray-300 font-semibold truncate">Rider: <span class="text-cyber-neonCyan">${rider_id}</span></div>
+                    <div class="text-[10px] text-gray-500 flex justify-between mt-1 items-center">
+                        <span>GPS: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>
+                        <span class="text-[9px] font-bold ${severity === 'High' ? 'text-cyber-pink' : 'text-cyber-neonYellow'}">[${severity}]</span>
+                    </div>
+                `;
+
+                // Interactive click: Switch to map tab and Center Map to this pothole coordinate automatically!
+                card.addEventListener('click', () => {
+                    const tabMapBtn = document.getElementById('tab-map');
+                    if (tabMapBtn) tabMapBtn.click(); // Trigger map tab switch proactive
+                    
+                    state.map.flyTo([lat, lng], 16, {
+                        animate: true,
+                        duration: 1.5
+                    });
+                    
+                    // Automatically open its map popup dynamically
+                    state.markersGroup.eachLayer(marker => {
+                        if (marker.getLatLng().lat === lat && marker.getLatLng().lng === lng) {
+                            setTimeout(() => marker.openPopup(), 1500);
+                        }
+                    });
+                });
+
+                state.loggerContainer.appendChild(card);
+            });
+        }
+
+        // --- CONTRIBUTOR LEADERBOARD RENDERING MANAGER ---
+        function renderLeaderboardTable() {
+            const tbody = document.getElementById('leaderboard-tbody');
+            tbody.innerHTML = '';
+
+            if (state.potholesList.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="py-8 text-center text-gray-500 font-semibold">
+                            <i class="fa-solid fa-folder-open text-xl mb-2 block"></i>
+                            No contributor mapping data logged yet in system database.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Aggregate data by rider_id
+            const ridersMap = {};
+            state.potholesList.forEach(p => {
+                const rId = p.rider_id || "UNKNOWN_RIDER";
+                const hits = p.detection_count || 1;
+                
+                if (!ridersMap[rId]) {
+                    ridersMap[rId] = {
+                        username: rId,
+                        totalPotholes: 0,
+                        totalHits: 0,
+                        latestTimestamp: 0,
+                        latestLat: null,
+                        latestLng: null
+                    };
+                }
+                
+                ridersMap[rId].totalPotholes += 1;
+                ridersMap[rId].totalHits += hits;
+                
+                if (p.timestamp > ridersMap[rId].latestTimestamp) {
+                    ridersMap[rId].latestTimestamp = p.timestamp;
+                    ridersMap[rId].latestLat = p.lat;
+                    ridersMap[rId].latestLng = p.lng;
+                }
+            });
+
+            // Convert to array and sort by totalHits descending
+            const sortedRiders = Object.values(ridersMap).sort((a, b) => b.totalHits - a.totalHits);
+
+            sortedRiders.forEach((rider, index) => {
+                const rank = index + 1;
+                const dateStr = new Date(rider.latestTimestamp * 1000).toLocaleString();
+                const coordsStr = (rider.latestLat && rider.latestLng) ? `${rider.latestLat.toFixed(5)}, ${rider.latestLng.toFixed(5)}` : "N/A";
+                
+                // Color badges for Top Ranks
+                let rankBadge = `<span class="font-mono text-gray-500">${rank}</span>`;
+                if (rank === 1) {
+                    rankBadge = `<span class="px-2 py-0.5 rounded bg-yellow-500/20 text-cyber-neonYellow border border-yellow-500/30 font-bold text-[10px]"><i class="fa-solid fa-crown text-[9px] mr-1"></i> GOLD</span>`;
+                } else if (rank === 2) {
+                    rankBadge = `<span class="px-2 py-0.5 rounded bg-slate-300/20 text-slate-300 border border-slate-300/30 font-bold text-[10px]"><i class="fa-solid fa-medal text-[9px] mr-1"></i> SILVER</span>`;
+                } else if (rank === 3) {
+                    rankBadge = `<span class="px-2 py-0.5 rounded bg-orange-700/20 text-orange-400 border border-orange-700/30 font-bold text-[10px]"><i class="fa-solid fa-medal text-[9px] mr-1"></i> BRONZE</span>`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-cyber-border hover:bg-white/[0.02] transition-colors";
+                tr.innerHTML = `
+                    <td class="py-4 px-6 font-bold">${rankBadge}</td>
+                    <td class="py-4 px-6 font-bold text-cyber-neonCyan tracking-wide font-mono">${rider.username}</td>
+                    <td class="py-4 px-6 font-semibold font-mono text-white text-sm">
+                        ${rider.totalHits} <span class="text-[9px] text-gray-500 font-semibold uppercase tracking-wider font-sans ml-1">Hits</span>
+                        <span class="text-[10px] text-gray-400 font-sans block mt-0.5 font-normal">(${rider.totalPotholes} unique patches)</span>
+                    </td>
+                    <td class="py-4 px-6 text-gray-300 font-mono text-[11px]">${coordsStr}</td>
+                    <td class="py-4 px-6 text-gray-400 font-mono text-[11px]">${dateStr}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- ADMIN USER MANAGEMENT DATA FETCH & RENDER ---
+        async function renderAdminTable() {
+            const tbody = document.getElementById('admin-tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="py-8 text-center text-gray-500 font-semibold">
+                        <i class="fa-solid fa-spinner animate-spin text-xl mb-2 block text-cyber-pink"></i>
+                        Loading user records...
+                    </td>
+                </tr>
+            `;
+
+            const gatewayUrl = state.backendUrl || window.location.origin;
+            const endpoint = `${gatewayUrl}/api/admin/users`;
+
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: { 
+                        'Accept': 'application/json',
+                        'ngrok-skip-browser-warning': '69420'
+                    }
+                });
+
+                if (!response.ok) throw new Error(`HTTP error status ${response.status}: ${response.statusText}`);
+                
+                const users = await response.json();
+                tbody.innerHTML = '';
+
+                if (users.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="4" class="py-8 text-center text-gray-500 font-semibold">
+                                <i class="fa-solid fa-users-slash text-xl mb-2 block text-gray-600"></i>
+                                No user profiles found in database.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                users.forEach(user => {
+                    const riderId = user.rider_id;
+                    const count = user.pothole_count;
+                    const lat = user.lat;
+                    const lng = user.lng;
+
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b border-cyber-border hover:bg-white/[0.02] transition-colors";
+                    
+                    const tdRider = document.createElement('td');
+                    tdRider.className = "py-4 px-6 font-bold text-cyber-neonCyan tracking-wide font-mono";
+                    tdRider.textContent = riderId;
+                    
+                    const tdCount = document.createElement('td');
+                    tdCount.className = "py-4 px-6 font-semibold font-mono text-white text-sm";
+                    tdCount.textContent = `${count} ${count === 1 ? 'pothole' : 'potholes'}`;
+                    
+                    const tdGPS = document.createElement('td');
+                    tdGPS.className = "py-4 px-6 font-mono text-[11px] text-gray-300";
+                    if (lat !== null && lng !== null) {
+                        const gpsLink = document.createElement('a');
+                        gpsLink.className = "text-cyber-neonCyan hover:text-cyber-pink underline cursor-pointer transition-colors duration-200";
+                        gpsLink.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                        gpsLink.addEventListener('click', () => {
+                            const tabMapBtn = document.getElementById('tab-map');
+                            if (tabMapBtn) tabMapBtn.click();
+                            
+                            state.map.flyTo([lat, lng], 16, { animate: true, duration: 1.5 });
+                            
+                            state.markersGroup.eachLayer(marker => {
+                                if (marker.getLatLng().lat === lat && marker.getLatLng().lng === lng) {
+                                    setTimeout(() => marker.openPopup(), 1500);
+                                }
+                            });
+                        });
+                        tdGPS.appendChild(gpsLink);
+                    } else {
+                        tdGPS.textContent = "N/A";
+                    }
+                    
+                    const tdActions = document.createElement('td');
+                    tdActions.className = "py-4 px-6 text-right";
+                    
+                    const deleteBtn = document.createElement('button');
+                    // Striking pinkish-red warning styling
+                    deleteBtn.className = "px-3 py-1.5 rounded bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-bold text-[10px] uppercase tracking-wider transition-all duration-200 border border-rose-500/20 shadow-glow-pink flex items-center gap-1.5 ml-auto";
+                    deleteBtn.innerHTML = `<i class="fa-solid fa-trash-can"></i> Delete Data`;
+                    
+                    deleteBtn.addEventListener('click', async () => {
+                        const confirmed = confirm(`Are you sure you want to permanently delete all data for this rider?`);
+                        if (!confirmed) return;
+                        
+                        deleteBtn.disabled = true;
+                        deleteBtn.innerHTML = `<i class="fa-solid fa-circle-notch animate-spin"></i> Purging...`;
+                        
+                        try {
+                            const deleteEndpoint = `${gatewayUrl}/api/admin/users/${encodeURIComponent(riderId)}`;
+                            const delResponse = await fetch(deleteEndpoint, {
+                                method: 'DELETE',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'ngrok-skip-browser-warning': '69420'
+                                }
+                            });
+                            
+                            if (!delResponse.ok) throw new Error(`Delete failed: ${delResponse.statusText}`);
+                            const result = await delResponse.json();
+                            
+                            // Reload both the admin table and the overall telemetry data
+                            await renderAdminTable();
+                            await fetchCrowdsourcedData();
+                        } catch (err) {
+                            console.error("[PURGE ERROR] Purge operation failed:", err);
+                            alert(`Failed to delete data: ${err.message}`);
+                            deleteBtn.disabled = false;
+                            deleteBtn.innerHTML = `<i class="fa-solid fa-trash-can"></i> Delete Data`;
+                        }
+                    });
+                    
+                    tdActions.appendChild(deleteBtn);
+                    tr.appendChild(tdRider);
+                    tr.appendChild(tdCount);
+                    tr.appendChild(tdGPS);
+                    tr.appendChild(tdActions);
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error("[ADMIN DATA RETRIEVAL ERROR] Failed to fetch users. Details:", err);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="py-8 text-center text-red-400 font-semibold">
+                            <i class="fa-solid fa-triangle-exclamation text-xl mb-2 block"></i>
+                            Failed to load user records.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // --- UTILITY: SMOOTH TELEMETRY VALUE ANIMATOR ---
+        function animateValue(obj, start, end, duration) {
+            if (start === end) return;
+            const range = end - start;
+            let current = start;
+            const increment = end > start ? 1 : -1;
+            const stepTime = Math.abs(Math.floor(duration / range)) || 10;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                obj.innerText = current;
+                if (current === end) {
+                    clearInterval(timer);
+                }
+            }, stepTime);
+        }
+
+        // --- UTILITY: API HEADER STATUS MANAGER ---
+        function setApiStatus(status) {
+            if (status === 'online') {
+                state.apiPill.className = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-950/40 text-cyber-neonGreen border border-cyber-neonGreen/30 shadow-glow-green";
+                state.apiDot.className = "w-2 h-2 rounded-full bg-cyber-neonGreen animate-pulse";
+                state.apiText.innerText = "UPLINK ACTIVE";
+            } else if (status === 'polling') {
+                state.apiPill.className = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-950/40 text-cyber-neonCyan border border-cyber-neonCyan/30";
+                state.apiDot.className = "w-2 h-2 rounded-full bg-cyber-neonCyan animate-spin";
+                state.apiText.innerText = "REFRESHING...";
+            } else {
+                state.apiPill.className = "flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-950/40 text-red-400 border border-red-500/20";
+                state.apiDot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
+                state.apiText.innerText = "CONN OFFLINE";
+            }
+        }
+
+        // --- SETTINGS STORAGE UTILITIES ---
+        function loadSettings() {
+            state.backendUrl = localStorage.getItem(CONFIG.API_URL_KEY) || '';
+            state.inputApiUrl.value = state.backendUrl;
+        }
+
+        async function saveSettings() {
+            let urlVal = state.inputApiUrl.value.trim();
+            if (urlVal && !urlVal.startsWith('http://') && !urlVal.startsWith('https://')) {
+                urlVal = 'http://' + urlVal;
+            }
+            state.backendUrl = urlVal;
+            localStorage.setItem(CONFIG.API_URL_KEY, state.backendUrl);
+
+            closeModal();
+            
+            // Quick ping to check status, then fetch full data
+            const isOnline = await pingApiHealth();
+            fetchCrowdsourcedData();
+            
+            // Re-setup polling interval
+            setupPollingInterval();
+        }
+
+        function setupPollingInterval() {
+            if (state.pollingIntervalId) {
+                clearInterval(state.pollingIntervalId);
+            }
+            state.pollingIntervalId = setInterval(fetchCrowdsourcedData, CONFIG.POLLING_INTERVAL);
+        }
+
+        // --- WINDOW EVENTS REGISTRATION ---
+        function openModal() { state.settingsModal.classList.remove('hidden'); }
+        function closeModal() { state.settingsModal.classList.add('hidden'); }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // 1. Initialize map view grid
+            initLeafletMap();
+
+            // 2. Load configurations
+            loadSettings();
+
+            // 3. Register click triggers
+            state.settingsBtn.addEventListener('click', openModal);
+            state.closeModalBtn.addEventListener('click', closeModal);
+            state.saveSettingsBtn.addEventListener('click', saveSettings);
+            state.settingsModal.addEventListener('click', (e) => {
+                if (e.target === state.settingsModal) closeModal();
+            });
+
+            // Tab toggles binding
+            const tabMapBtn = document.getElementById('tab-map');
+            const tabAnalyticsBtn = document.getElementById('tab-analytics');
+            const tabAdminBtn = document.getElementById('tab-admin');
+            const tabContentMap = document.getElementById('tab-content-map');
+            const tabContentAnalytics = document.getElementById('tab-content-analytics');
+            const tabContentAdmin = document.getElementById('tab-content-admin');
+
+            tabMapBtn.addEventListener('click', () => {
+                tabMapBtn.className = "px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all duration-300 bg-cyber-pink text-white shadow-glow-pink flex items-center gap-2";
+                tabAnalyticsBtn.className = "px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all duration-300 text-gray-400 hover:text-white hover:bg-white/5 flex items-center gap-2";
+                tabAdminBtn.className = "px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all duration-300 text-gray-400 hover:text-white hover:bg-white/5 flex items-center gap-2";
+                tabContentMap.classList.remove('hidden');
+                tabContentAnalytics.classList.add('hidden');
+                tabContentAdmin.classList.add('hidden');
+                
+                // Re-render map in case dimensions changed
+                if (state.map) {
+                    setTimeout(() => state.map.invalidateSize(), 100);
+                }
+            });
+
+            tabAnalyticsBtn.addEventListener('click', () => {
+                tabAnalyticsBtn.className = "px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all duration-300 bg-cyber-pink text-white shadow-glow-pink flex items-center gap-2";
+                tabMapBtn.className = "px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all duration-300 text-gray-400 hover:text-white hover:bg-white/5 flex items-center gap-2";
+                tabAdminBtn.className = "px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all duration-300 text-gray-400 hover:text-white hover:bg-white/5 flex items-center gap-2";
+                tabContentAnalytics.classList.remove('hidden');
+                tabContentMap.classList.add('hidden');
+                tabContentAdmin.classList.add('hidden');
+                
+                renderLeaderboardTable();
+            });
+
+            tabAdminBtn.addEventListener('click', () => {
+                tabAdminBtn.className = "px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all duration-300 bg-cyber-pink text-white shadow-glow-pink flex items-center gap-2";
+                tabMapBtn.className = "px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all duration-300 text-gray-400 hover:text-white hover:bg-white/5 flex items-center gap-2";
+                tabAnalyticsBtn.className = "px-4 py-2 rounded-lg font-bold text-xs uppercase transition-all duration-300 text-gray-400 hover:text-white hover:bg-white/5 flex items-center gap-2";
+                tabContentAdmin.classList.remove('hidden');
+                tabContentMap.classList.add('hidden');
+                tabContentAnalytics.classList.add('hidden');
+                
+                renderAdminTable();
+            });
+
+            // 4. Ingest crowdsourcing telemetry & start polling loops
+            fetchCrowdsourcedData();
+            setupPollingInterval();
+        });
+    </script>
+</body>
+</html>

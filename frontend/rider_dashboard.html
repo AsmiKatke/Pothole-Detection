@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoadGuard AI - Rider Dashboard</title>
+    <!-- Google Fonts: Outfit (Display & UI) and JetBrains Mono (Stats/Data) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        cyber: {
+                            bg: '#08080C',
+                            card: '#12121A',
+                            border: '#1F1F2E',
+                            accent: '#45A29E',
+                            pink: '#FF4B72',
+                            neonGreen: '#39FF14',
+                            neonYellow: '#FFD700',
+                            neonCyan: '#00F0FF',
+                        }
+                    },
+                    boxShadow: {
+                        'glow-pink': '0 0 15px rgba(255, 75, 114, 0.4)',
+                        'glow-cyan': '0 0 15px rgba(0, 240, 255, 0.4)',
+                        'glow-green': '0 0 15px rgba(57, 255, 20, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Glassmorphism custom rules */
+        .glass-panel {
+            background: rgba(18, 18, 26, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .pulse-slow {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .4; }
+        }
+        .glow-line {
+            background: linear-gradient(90deg, transparent, #FF4B72, #00F0FF, transparent);
+            height: 2px;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #08080C;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1F1F2E;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #45A29E;
+        }
+    </style>
+</head>
+<body class="bg-cyber-bg text-gray-200 font-sans min-h-screen flex flex-col selection:bg-cyber-pink selection:text-white">
+
+    <!-- TOP HEADER -->
+    <header class="w-full glass-panel sticky top-0 z-40 border-b border-cyber-border px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyber-pink to-cyber-neonCyan flex items-center justify-center text-white font-bold shadow-glow-cyan">
+                <i class="fa-solid fa-shield-halved text-sm"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-extrabold tracking-tight bg-gradient-to-r from-white via-gray-200 to-cyber-neonCyan bg-clip-text text-transparent">
+                    ROADGUARD <span class="text-cyber-pink text-xs font-bold px-1.5 py-0.5 rounded border border-cyber-pink/30 ml-1 uppercase">AI</span>
+                </h1>
+                <p class="text-[10px] text-gray-500 font-medium tracking-widest uppercase">Crowdsourced Pothole Tracker</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-3">
+            <!-- Rider Username Pill -->
+            <div class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyber-card border border-cyber-border text-xs text-gray-400">
+                <i class="fa-solid fa-user text-cyber-pink"></i>
+                <span>Rider: <span id="header-username" class="font-bold text-white">Guest</span></span>
+            </div>
+
+            <!-- View Personal History Button -->
+            <a href="history.html" class="px-3 py-1.5 rounded-lg bg-cyber-card border border-cyber-border text-xs text-cyber-accent font-bold hover:text-white hover:border-cyber-pink hover:shadow-glow-pink transition-all duration-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-clock-rotate-left text-sm"></i>
+                <span>My History</span>
+            </a>
+
+            <!-- PING/API STATUS INDICATOR -->
+            <div id="api-status-pill" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-950/40 text-red-400 border border-red-500/20">
+                <span id="api-status-dot" class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                <span id="api-status-text" class="font-mono text-[10px]">OFFLINE</span>
+            </div>
+
+            <!-- SETTINGS BUTTON -->
+            <button id="btn-settings" class="w-9 h-9 flex items-center justify-center rounded-lg bg-cyber-card border border-cyber-border text-gray-400 hover:text-white hover:border-cyber-accent transition-all duration-300">
+                <i class="fa-solid fa-sliders"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN BODY CONTROLLER -->
+    <main class="flex-grow flex flex-col md:flex-row max-w-7xl w-full mx-auto p-4 gap-4 overflow-hidden">
+        
+        <!-- LEFT PANEL: CAMERA VIEWPORT -->
+        <section class="flex-grow md:w-3/5 flex flex-col gap-3 min-h-[350px] md:min-h-0">
+            <!-- CAMERA PORT CONTAINING VIDEO FEED -->
+            <div id="camera-container" class="relative flex-grow rounded-2xl border border-cyber-border bg-[#0a0a0f] overflow-hidden shadow-2xl flex flex-col justify-center items-center group">
+                <!-- Video stream -->
+                <video id="webcam-feed" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover hidden transition-transform duration-200"></video>
+                
+                <!-- Silent Canvas for Frame Extraction -->
+                <canvas id="hidden-canvas" class="hidden"></canvas>
+
+                <!-- Fullscreen Trigger Overlay Button -->
+                <button id="btn-fullscreen" class="absolute top-4 right-4 z-30 w-10 h-10 flex items-center justify-center rounded-xl bg-black/60 hover:bg-black/80 border border-white/10 text-gray-300 hover:text-cyber-neonCyan hover:border-cyber-neonCyan/30 hover:scale-105 active:scale-95 transition-all duration-300 pointer-events-auto shadow-md">
+                    <i class="fa-solid fa-expand text-base"></i>
+                </button>
+
+                <!-- Custom Camera Overlay Scanlines / Aim reticle -->
+                <div id="camera-overlay" class="absolute inset-0 pointer-events-none z-10 hidden border-2 border-cyber-accent/20 rounded-2xl">
+                    <!-- Scanner beam -->
+                    <div id="scanner-line" class="absolute left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-cyber-neonCyan to-transparent top-0 animate-[scan_3s_linear_infinite] opacity-60"></div>
+                    <!-- Aim Reticle -->
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <div class="w-16 h-16 border border-cyber-accent/30 rounded-full flex items-center justify-center">
+                            <div class="w-2 h-2 bg-cyber-pink rounded-full pulse-slow"></div>
+                        </div>
+                    </div>
+                    <!-- Frame Ping indicator overlay -->
+                    <div id="frame-ping-flash" class="absolute top-4 left-4 w-3.5 h-3.5 rounded-full bg-cyber-neonCyan border-2 border-white scale-0 transition-transform duration-200"></div>
+                </div>
+
+                <!-- Fallback Screen (No active stream) -->
+                <div id="camera-placeholder" class="text-center p-6 z-20 flex flex-col items-center gap-4">
+                    <div class="w-20 h-20 rounded-full bg-cyber-card border border-cyber-border flex items-center justify-center text-gray-500 text-3xl group-hover:text-cyber-pink transition-colors duration-500">
+                        <i class="fa-solid fa-camera"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-300">Camera Feed Inactive</h3>
+                        <p class="text-xs text-gray-500 max-w-xs mt-1">Start a Trip below to activate the rear camera dashboard and begin smart detection.</p>
+                    </div>
+                </div>
+
+                <!-- Active overlay info -->
+                <div class="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+                    <!-- Geolocation readout overlays -->
+                    <div class="flex items-center gap-2 bg-black/70 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg text-xs">
+                        <i class="fa-solid fa-location-dot text-cyber-pink animate-bounce"></i>
+                        <span id="overlay-coordinates" class="font-mono text-gray-300">GPS: --, --</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-2 bg-black/70 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg text-xs">
+                        <i class="fa-solid fa-compass text-cyber-neonCyan pulse-slow"></i>
+                        <span id="overlay-speed" class="font-mono text-gray-300">0.0 km/h</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CAMERA ZOOM CONTROL SLIDER -->
+            <div class="glass-panel rounded-xl p-3 border border-cyber-border flex items-center justify-between gap-4">
+                <div class="flex items-center gap-2 select-none">
+                    <i class="fa-solid fa-magnifying-glass-plus text-cyber-neonCyan"></i>
+                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Camera Zoom</span>
+                </div>
+                <div class="flex-grow flex items-center gap-3">
+                    <span class="text-[10px] font-mono text-gray-500">1x</span>
+                    <input id="slider-zoom" type="range" min="1" max="5" step="0.1" value="1" class="flex-grow h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-cyber-neonCyan">
+                    <span class="text-[10px] font-mono text-gray-500">5x</span>
+                </div>
+                <div class="bg-black/40 border border-white/5 px-2.5 py-1 rounded text-xs font-mono font-bold text-cyber-neonCyan w-12 text-center select-none">
+                    <span id="zoom-value">1.0</span>x
+                </div>
+            </div>
+
+            <!-- Toast alerts inside container -->
+            <div id="pothole-toast-container" class="w-full flex flex-col gap-2 pointer-events-none">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL: DASHBOARD CONTROLS & STATS -->
+        <section class="md:w-2/5 flex flex-col gap-4">
+            <!-- TRIP TRIGGER ACTION -->
+            <div class="glass-panel rounded-2xl p-5 border border-cyber-border shadow-lg relative overflow-hidden">
+                <div class="glow-line absolute top-0 left-0 w-full"></div>
+                <h2 class="text-sm font-bold tracking-wider text-gray-400 uppercase mb-3">Trip Session Manager</h2>
+                
+                <div class="flex flex-col gap-3">
+                    <button id="btn-toggle-trip" class="w-full py-4 px-6 rounded-xl font-bold text-lg tracking-wide uppercase transition-all duration-300 shadow-glow-cyan bg-gradient-to-r from-cyber-accent to-cyber-neonCyan text-cyber-bg hover:opacity-95 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-3">
+                        <i class="fa-solid fa-route"></i>
+                        <span>Start Trip Mapping</span>
+                    </button>
+                    
+                    <p class="text-[11px] text-gray-500 text-center leading-relaxed mt-1">
+                        By starting a trip, the app will request camera & GPS permissions to stream frames for cloud AI pothole analysis every 2 seconds.
+                    </p>
+                </div>
+            </div>
+
+            <!-- CORE STATS GRID -->
+            <div class="grid grid-cols-2 gap-3 flex-grow">
+                
+                <!-- POTHOLES FOUND -->
+                <div class="glass-panel rounded-2xl p-4 border border-cyber-border flex flex-col justify-between group hover:border-cyber-pink/50 transition-all duration-300">
+                    <div class="flex items-center justify-between text-gray-500">
+                        <span class="text-xs font-semibold tracking-wider uppercase">Potholes Found</span>
+                        <i class="fa-solid fa-triangle-exclamation text-cyber-pink group-hover:scale-125 transition-transform duration-300"></i>
+                    </div>
+                    <div class="mt-4">
+                        <span id="stat-potholes" class="text-4xl font-extrabold font-mono text-white tracking-tight drop-shadow-[0_0_10px_rgba(255,75,114,0.3)]">0</span>
+                        <span class="text-xs text-gray-500 block mt-1">Verified detections</span>
+                    </div>
+                </div>
+
+                <!-- GPS STRENGTH -->
+                <div class="glass-panel rounded-2xl p-4 border border-cyber-border flex flex-col justify-between group hover:border-cyber-neonCyan/50 transition-all duration-300">
+                    <div class="flex items-center justify-between text-gray-500">
+                        <span class="text-xs font-semibold tracking-wider uppercase">GPS Status</span>
+                        <i id="gps-icon" class="fa-solid fa-satellite-dish text-gray-500 transition-colors duration-300"></i>
+                    </div>
+                    <div class="mt-4">
+                        <span id="stat-gps" class="text-xl font-extrabold tracking-tight text-gray-400">DISCONNECTED</span>
+                        <span id="stat-gps-accuracy" class="text-xs text-gray-500 block mt-1">Accuracy: --</span>
+                    </div>
+                </div>
+
+                <!-- DISTANCE TRAVELED -->
+                <div class="glass-panel rounded-2xl p-4 border border-cyber-border flex flex-col justify-between group hover:border-white/20 transition-all duration-300">
+                    <div class="flex items-center justify-between text-gray-500">
+                        <span class="text-xs font-semibold tracking-wider uppercase">Distance</span>
+                        <i class="fa-solid fa-road text-gray-400 group-hover:translate-x-1 transition-transform duration-300"></i>
+                    </div>
+                    <div class="mt-4 font-mono">
+                        <span id="stat-distance" class="text-3xl font-extrabold text-white">0.00</span>
+                        <span class="text-sm text-gray-400 ml-1">km</span>
+                        <span class="text-[10px] text-gray-500 block mt-1">Trip coverage</span>
+                    </div>
+                </div>
+
+                <!-- SESSION SPEED -->
+                <div class="glass-panel rounded-2xl p-4 border border-cyber-border flex flex-col justify-between group hover:border-white/20 transition-all duration-300">
+                    <div class="flex items-center justify-between text-gray-500">
+                        <span class="text-xs font-semibold tracking-wider uppercase">Speed</span>
+                        <i class="fa-solid fa-gauge text-gray-400 group-hover:rotate-45 transition-transform duration-300"></i>
+                    </div>
+                    <div class="mt-4 font-mono">
+                        <span id="stat-speed" class="text-3xl font-extrabold text-white">0.0</span>
+                        <span class="text-sm text-gray-400 ml-1">km/h</span>
+                        <span id="stat-speed-label" class="text-[10px] text-gray-500 block mt-1">Moving speed</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SESSION DETAILS & PING HEARTBEAT -->
+            <div class="glass-panel rounded-2xl p-4 border border-cyber-border text-xs flex justify-between items-center bg-[#101018]/50">
+                <div class="flex flex-col gap-1 text-gray-400">
+                    <div class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-cyber-pink"></span>
+                        <span>Trip ID: <span id="session-trip-id" class="font-mono text-gray-300 font-bold">N/A</span></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-cyber-neonCyan"></span>
+                        <span>Frames Sent: <span id="session-frames-count" class="font-mono text-gray-300 font-bold">0</span></span>
+                    </div>
+                </div>
+                <!-- PULSING Heartbeat visualization -->
+                <div class="flex flex-col items-center gap-1">
+                    <div id="heartbeat-ring" class="w-10 h-10 rounded-full border border-cyber-border flex items-center justify-center transition-all duration-300">
+                        <div id="heartbeat-dot" class="w-3.5 h-3.5 rounded-full bg-gray-600 transition-all duration-300"></div>
+                    </div>
+                    <span class="text-[9px] text-gray-500 uppercase tracking-widest font-semibold">Pulse</span>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="w-full glass-panel py-3 text-center border-t border-cyber-border mt-auto">
+        <p class="text-xs text-gray-500">
+            RoadGuard AI Decoupled Core • Secure Base64 Camera Uplink • Made with <i class="fa-solid fa-heart text-cyber-pink"></i> by Asmi, Sneha & Anushka
+        </p>
+    </footer>
+
+    <!-- SETTINGS MODAL -->
+    <div id="modal-settings" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl border border-cyber-border w-full max-w-md overflow-hidden shadow-2xl relative animate-[fadeIn_0.2s_ease-out]">
+            <div class="glow-line absolute top-0 left-0 w-full"></div>
+            
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-cyber-border flex justify-between items-center">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-gears text-cyber-neonCyan text-lg"></i>
+                    <h3 class="text-base font-bold text-white uppercase tracking-wider">System Configuration</h3>
+                </div>
+                <button id="modal-close" class="text-gray-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="p-5 flex flex-col gap-4 max-h-[70vh] overflow-y-auto">
+                
+                <!-- API URL Settings -->
+                <div>
+                    <label for="input-api-url" class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Backend API URL (Ngrok or Local IP)</label>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
+                            <i class="fa-solid fa-link text-sm"></i>
+                        </span>
+                        <input id="input-api-url" type="url" placeholder="e.g. https://xxxx.ngrok-free.app or http://127.0.0.1:5000" class="w-full bg-[#0d0d14] border border-cyber-border rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-cyber-accent focus:ring-1 focus:ring-cyber-accent transition-all duration-300 font-mono">
+                    </div>
+                    <p class="text-[10px] text-gray-500 leading-relaxed mt-2">
+                        Must point to your running Flask server. Include the protocol (<code class="bg-gray-900 px-1 py-0.5 rounded text-cyber-pink">http://</code> or <code class="bg-gray-900 px-1 py-0.5 rounded text-cyber-pink">https://</code>). Leave blank to default to absolute path calls when served together.
+                    </p>
+                </div>
+
+                <!-- WhatsApp Target Number Settings -->
+                <div>
+                    <label for="input-whatsapp-number" class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">WhatsApp Target Number</label>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
+                            <i class="fa-solid fa-brands fa-whatsapp text-sm"></i>
+                        </span>
+                        <input id="input-whatsapp-number" type="text" placeholder="e.g. +918169233423" class="w-full bg-[#0d0d14] border border-cyber-border rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-cyber-accent focus:ring-1 focus:ring-cyber-accent transition-all duration-300 font-mono">
+                    </div>
+                    <p class="text-[10px] text-gray-500 leading-relaxed mt-2">
+                        Enter your target WhatsApp number (with country code, e.g. +918169233423) to receive instant alerts of detected potholes. If left blank, the backend's default target number will be used.
+                    </p>
+                </div>
+
+                <!-- Simulation Mode Trigger -->
+                <div class="flex items-center justify-between p-3.5 bg-[#12121e]/60 border border-cyber-border rounded-xl">
+                    <div class="flex flex-col gap-0.5">
+                        <span class="text-xs font-bold text-white uppercase tracking-wide">Developer Demo Mode</span>
+                        <span class="text-[10px] text-gray-500 max-w-[240px]">Simulates GPS movements and generates mock high/medium severity potholes locally without an active Flask backend API.</span>
+                    </div>
+                    <!-- Switch button -->
+                    <label class="relative inline-flex items-center cursor-pointer select-none">
+                        <input type="checkbox" id="toggle-demo-mode" class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyber-pink peer-checked:after:bg-white"></div>
+                    </label>
+                </div>
+
+                <!-- Video Frame Sizing (Advanced customization) -->
+                <div>
+                    <label for="select-resolution" class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Capture Quality Preset</label>
+                    <select id="select-resolution" class="w-full bg-[#0d0d14] border border-cyber-border rounded-xl py-3 px-3 text-sm text-gray-300 focus:outline-none focus:border-cyber-accent transition-all duration-300">
+                        <option value="640">Medium 640px (Recommended - Fast inference)</option>
+                        <option value="480">Lightweight 480px (Ultra-low bandwidth)</option>
+                        <option value="960">High 960px (Rich details, heavier payload)</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-5 border-t border-cyber-border bg-[#0d0d14]/50 flex justify-end gap-2">
+                <button id="btn-save-settings" class="px-5 py-2.5 rounded-xl bg-cyber-pink text-white font-bold text-xs uppercase hover:bg-cyber-pink/90 active:scale-95 transition-all duration-200 shadow-glow-pink">
+                    Apply & Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUDIO NOTIFICATION SYSTEM & GEOLOCATION SIMULATOR JS -->
+    <script>
+        // --- CONSTANTS AND STATE ---
+        const CONFIG = {
+            API_URL_KEY: 'roadguard_backend_url',
+            DEMO_MODE_KEY: 'roadguard_demo_mode',
+            RESOLUTION_KEY: 'roadguard_res_preset',
+            WHATSAPP_NUMBER_KEY: 'roadguard_whatsapp_number',
+        };
+
+        const state = {
+            isTripActive: false,
+            backendUrl: '',
+            demoMode: false,
+            resolutionPreset: 640,
+            whatsappNumber: '',
+            
+            // Geolocation tracking
+            watchId: null,
+            latitude: null,
+            longitude: null,
+            speed: 0,
+            gpsAccuracy: null,
+            routeCoordinates: [],
+            totalDistance: 0,
+            lastPosition: null,
+
+            // Stream state
+            videoStream: null,
+            captureIntervalId: null,
+            framesCount: 0,
+            potholesCount: 0,
+            tripId: 'N/A',
+
+            // UI Elements
+            videoEl: document.getElementById('webcam-feed'),
+            placeholderEl: document.getElementById('camera-placeholder'),
+            overlayEl: document.getElementById('camera-overlay'),
+            toggleTripBtn: document.getElementById('btn-toggle-trip'),
+            settingsBtn: document.getElementById('btn-settings'),
+            settingsModal: document.getElementById('modal-settings'),
+            closeModalBtn: document.getElementById('modal-close'),
+            saveSettingsBtn: document.getElementById('btn-save-settings'),
+            
+            // Inputs
+            inputApiUrl: document.getElementById('input-api-url'),
+            inputWhatsappNumber: document.getElementById('input-whatsapp-number'),
+            toggleDemoMode: document.getElementById('toggle-demo-mode'),
+            selectResolution: document.getElementById('select-resolution'),
+
+            // Readouts
+            apiPill: document.getElementById('api-status-pill'),
+            apiDot: document.getElementById('api-status-dot'),
+            apiText: document.getElementById('api-status-text'),
+            statPotholes: document.getElementById('stat-potholes'),
+            statGps: document.getElementById('stat-gps'),
+            statGpsAccuracy: document.getElementById('stat-gps-accuracy'),
+            statDistance: document.getElementById('stat-distance'),
+            statSpeed: document.getElementById('stat-speed'),
+            overlayCoords: document.getElementById('overlay-coordinates'),
+            overlaySpeed: document.getElementById('overlay-speed'),
+            sessionTripId: document.getElementById('session-trip-id'),
+            sessionFramesCount: document.getElementById('session-frames-count'),
+            heartbeatDot: document.getElementById('heartbeat-dot'),
+            heartbeatRing: document.getElementById('heartbeat-ring'),
+            toastContainer: document.getElementById('pothole-toast-container'),
+            canvas: document.getElementById('hidden-canvas'),
+        };
+
+        // --- WEB AUDIO API ALERTS ---
+        function playAlertSound(severity) {
+            try {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContextClass) return;
+                
+                const audioCtx = new AudioContextClass();
+                
+                if (severity === 'High') {
+                    // High-energy alarm: aggressive dual synth sweeps with fast decay
+                    const now = audioCtx.currentTime;
+                    
+                    const osc1 = audioCtx.createOscillator();
+                    const osc2 = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    osc1.type = 'sawtooth';
+                    osc1.frequency.setValueAtTime(880, now);
+                    osc1.frequency.exponentialRampToValueAtTime(1400, now + 0.18);
+                    
+                    osc2.type = 'square';
+                    osc2.frequency.setValueAtTime(440, now);
+                    osc2.frequency.exponentialRampToValueAtTime(700, now + 0.18);
+                    
+                    gainNode.gain.setValueAtTime(0.15, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                    
+                    osc1.connect(gainNode);
+                    osc2.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    
+                    osc1.start(now);
+                    osc2.start(now);
+                    osc1.stop(now + 0.22);
+                    osc2.stop(now + 0.22);
+                } else {
+                    // Short energetic chirp: fast upward sine sweep
+                    const now = audioCtx.currentTime;
+                    const osc = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1);
+                    
+                    gainNode.gain.setValueAtTime(0.18, now);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                    
+                    osc.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    
+                    osc.start(now);
+                    osc.stop(now + 0.14);
+                }
+            } catch (e) {
+                console.warn("[AUDIO] Web Audio blocked or unsupported:", e);
+            }
+        }
+
+        // --- HELPER METRICS (HAVERSINE DISTANCE) ---
+        function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c; // In kilometers
+        }
+
+        // --- DYNAMIC NOTIFICATIONS (TOASTS) ---
+        function showPotholeToast(severity, lat, lng) {
+            const toast = document.createElement('div');
+            toast.className = `p-3.5 rounded-xl border flex items-center justify-between pointer-events-auto shadow-lg transform transition-all duration-300 translate-y-2 opacity-0 animate-[toastIn_0.3s_ease-out_forwards] ${
+                severity === 'High' 
+                    ? 'bg-red-950/85 border-red-500/40 text-red-100 shadow-glow-pink' 
+                    : 'bg-orange-950/85 border-orange-500/40 text-orange-100'
+            }`;
+            
+            toast.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="flex h-3 w-3 relative">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${severity === 'High' ? 'bg-red-400' : 'bg-orange-400'}"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 ${severity === 'High' ? 'bg-red-500' : 'bg-orange-500'}"></span>
+                    </span>
+                    <div>
+                        <div class="text-xs font-bold uppercase tracking-wider">${severity} Severity Pothole Spotted</div>
+                        <div class="text-[10px] text-gray-400 font-mono mt-0.5">Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}</div>
+                    </div>
+                </div>
+                <div class="text-[10px] px-2 py-0.5 bg-black/40 rounded border border-white/5 font-bold">ALERTED</div>
+            `;
+            
+            // Style keyframes inject dynamically if not preset
+            if (!document.getElementById('toast-keyframes')) {
+                const style = document.createElement('style');
+                style.id = 'toast-keyframes';
+                style.innerHTML = `
+                    @keyframes toastIn {
+                        to { transform: translateY(0); opacity: 1; }
+                    }
+                    @keyframes scan {
+                        0% { top: 0%; }
+                        50% { top: 100%; }
+                        100% { top: 0%; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            state.toastContainer.appendChild(toast);
+
+            // Auto dismiss toast
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-[-10px]', 'transition-all', 'duration-300');
+                setTimeout(() => toast.remove(), 300);
+            }, 4500);
+        }
+
+        // --- STORAGE & CONFIG LOAD/SAVE ---
+        function loadSettings() {
+            state.backendUrl = localStorage.getItem(CONFIG.API_URL_KEY) || '';
+            state.demoMode = localStorage.getItem(CONFIG.DEMO_MODE_KEY) === 'true';
+            state.resolutionPreset = parseInt(localStorage.getItem(CONFIG.RESOLUTION_KEY)) || 640;
+            state.whatsappNumber = localStorage.getItem(CONFIG.WHATSAPP_NUMBER_KEY) || '';
+
+            state.inputApiUrl.value = state.backendUrl;
+            state.toggleDemoMode.checked = state.demoMode;
+            state.selectResolution.value = state.resolutionPreset;
+            state.inputWhatsappNumber.value = state.whatsappNumber;
+
+            updateBackendStatusIndicator();
+        }
+
+        function saveSettings() {
+            let urlVal = state.inputApiUrl.value.trim();
+            if (urlVal && !urlVal.startsWith('http://') && !urlVal.startsWith('https://')) {
+                urlVal = 'http://' + urlVal;
+            }
+            state.backendUrl = urlVal;
+            state.demoMode = state.toggleDemoMode.checked;
+            state.resolutionPreset = parseInt(state.selectResolution.value);
+            state.whatsappNumber = state.inputWhatsappNumber.value.trim();
+
+            localStorage.setItem(CONFIG.API_URL_KEY, state.backendUrl);
+            localStorage.setItem(CONFIG.DEMO_MODE_KEY, state.demoMode);
+            localStorage.setItem(CONFIG.RESOLUTION_KEY, state.resolutionPreset);
+            localStorage.setItem(CONFIG.WHATSAPP_NUMBER_KEY, state.whatsappNumber);
+
+            updateBackendStatusIndicator();
+            closeModal();
+            
+            // Re-trigger alert sound configuration
+            playAlertSound('Medium');
+        }
+
+        function updateBackendStatusIndicator() {
+            if (state.demoMode) {
+                state.apiPill.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-cyber-pink/20 text-cyber-pink border border-cyber-pink/30 shadow-glow-pink";
+                state.apiDot.className = "w-2 h-2 rounded-full bg-cyber-pink animate-pulse";
+                state.apiText.innerText = "SIMULATOR";
+                return;
+            }
+
+            if (!state.backendUrl) {
+                state.apiPill.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-950/40 text-orange-400 border border-orange-500/20";
+                state.apiDot.className = "w-2 h-2 rounded-full bg-orange-400 animate-pulse";
+                state.apiText.innerText = "NO BACKEND SET";
+                return;
+            }
+
+            // Quick check via ping or just state
+            state.apiPill.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-950/40 text-cyber-neonCyan border border-cyber-neonCyan/30";
+            state.apiDot.className = "w-2 h-2 rounded-full bg-cyber-neonCyan animate-pulse";
+            state.apiText.innerText = "STANDBY";
+        }
+
+        // --- HARDWARE CAMERA CONTROLS ---
+        async function startCamera() {
+            state.placeholderEl.classList.add('hidden');
+            state.videoEl.classList.remove('hidden');
+            state.overlayEl.classList.remove('hidden');
+
+            try {
+                // Focus on back-facing environment camera
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: "environment" },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+
+                state.videoStream = await navigator.mediaDevices.getUserMedia(constraints);
+                state.videoEl.srcObject = state.videoStream;
+                
+                // Reapply existing zoom slider constraint upon startup
+                const zoomVal = parseFloat(document.getElementById('slider-zoom').value);
+                if (zoomVal > 1.0) {
+                    const tracks = state.videoStream.getVideoTracks();
+                    if (tracks.length > 0) {
+                        const track = tracks[0];
+                        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                        if (capabilities.zoom) {
+                            track.applyConstraints({ advanced: [{ zoom: zoomVal }] }).catch(err => {
+                                console.warn("[CAMERA] Failed to apply physical zoom upon launch:", err);
+                            });
+                        } else {
+                            state.videoEl.style.transform = `scale(${zoomVal})`;
+                            state.videoEl.style.transformOrigin = 'center';
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn("[CAMERA] Rear camera access failed, trying default fallback:", err);
+                try {
+                    // Fallback to default front/standard camera
+                    state.videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    state.videoEl.srcObject = state.videoStream;
+                } catch (fallbackErr) {
+                    console.error("[CAMERA] Complete camera hardware acquisition failed:", fallbackErr);
+                    stopCamera();
+                    alert("Unable to access camera: Please ensure camera permission is granted and no other application is using it.");
+                }
+            }
+        }
+
+        function stopCamera() {
+            if (state.videoStream) {
+                state.videoStream.getTracks().forEach(track => track.stop());
+                state.videoStream = null;
+            }
+            state.videoEl.srcObject = null;
+            state.videoEl.style.transform = 'scale(1)'; // reset scaling
+            state.videoEl.classList.add('hidden');
+            state.overlayEl.classList.add('hidden');
+            state.placeholderEl.classList.remove('hidden');
+        }
+
+        // --- GPS AND GEOLOCATION ---
+        function startLocationTracking() {
+            state.statGps.innerText = "ACQUIRING...";
+            state.statGps.className = "text-xl font-extrabold tracking-tight text-cyber-neonYellow pulse-slow";
+            
+            const gpsIcon = document.getElementById('gps-icon');
+            gpsIcon.className = "fa-solid fa-satellite-dish text-cyber-neonYellow animate-spin";
+
+            if (state.demoMode) {
+                simulateLocationMovement();
+                return;
+            }
+
+            if (!navigator.geolocation) {
+                state.statGps.innerText = "UNSUPPORTED";
+                state.statGps.className = "text-xl font-extrabold tracking-tight text-red-500";
+                gpsIcon.className = "fa-solid fa-satellite-dish text-red-500";
+                return;
+            }
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+
+            state.watchId = navigator.geolocation.watchPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    const accuracy = pos.coords.accuracy;
+                    const rawSpeed = pos.coords.speed; // Speed in meters per second
+
+                    // Update State
+                    state.latitude = lat;
+                    state.longitude = lng;
+                    state.gpsAccuracy = accuracy;
+
+                    // Convert speed from m/s to km/h
+                    state.speed = rawSpeed !== null ? parseFloat((rawSpeed * 3.6).toFixed(1)) : 0;
+                    
+                    // Fallback speed estimator if static or null, but they are physically translating
+                    if (state.speed === 0 && state.lastPosition) {
+                        const tempDist = calculateHaversineDistance(
+                            state.lastPosition.lat, state.lastPosition.lng, lat, lng
+                        );
+                        const timeDeltaHours = (pos.timestamp - state.lastPosition.time) / 3600000;
+                        if (timeDeltaHours > 0 && tempDist > 0.001) {
+                            state.speed = parseFloat((tempDist / timeDeltaHours).toFixed(1));
+                        }
+                    }
+
+                    // Update distance accumulator
+                    if (state.lastPosition) {
+                        const segmentDist = calculateHaversineDistance(
+                            state.lastPosition.lat, state.lastPosition.lng, lat, lng
+                        );
+                        // Prevent GPS drift anomaly jumping
+                        if (segmentDist > 0.002 && segmentDist < 0.25) {
+                            state.totalDistance += segmentDist;
+                            state.routeCoordinates.push({ lat, lng });
+                        }
+                    } else {
+                        state.routeCoordinates.push({ lat, lng });
+                    }
+
+                    state.lastPosition = { lat, lng, time: pos.timestamp };
+
+                    // Update UI readouts
+                    state.statGps.innerText = "ACTIVE";
+                    state.statGps.className = "text-xl font-extrabold tracking-tight text-cyber-neonGreen shadow-glow-green";
+                    gpsIcon.className = "fa-solid fa-satellite-dish text-cyber-neonGreen animate-pulse";
+                    
+                    state.statGpsAccuracy.innerText = `Accuracy: ±${accuracy.toFixed(0)}m`;
+                    state.statDistance.innerText = state.totalDistance.toFixed(2);
+                    state.statSpeed.innerText = state.speed;
+                    
+                    state.overlayCoords.innerText = `GPS: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                    state.overlaySpeed.innerText = `${state.speed} km/h`;
+                },
+                (err) => {
+                    console.error("[GPS] Geolocating Watch Exception:", err);
+                    state.statGps.innerText = "GPS BLOCKED";
+                    state.statGps.className = "text-xl font-extrabold tracking-tight text-red-500 animate-pulse";
+                    gpsIcon.className = "fa-solid fa-satellite-dish text-red-500";
+                    state.statGpsAccuracy.innerText = "Permission Denied / Timeout";
+                },
+                options
+            );
+        }
+
+        function stopLocationTracking() {
+            if (state.watchId !== null) {
+                navigator.geolocation.clearWatch(state.watchId);
+                state.watchId = null;
+            }
+            
+            // Stop simulation interval if active
+            if (state.demoIntervalId) {
+                clearInterval(state.demoIntervalId);
+                state.demoIntervalId = null;
+            }
+
+            const gpsIcon = document.getElementById('gps-icon');
+            gpsIcon.className = "fa-solid fa-satellite-dish text-gray-500";
+            state.statGps.innerText = "DISCONNECTED";
+            state.statGps.className = "text-xl font-extrabold tracking-tight text-gray-400";
+            state.statGpsAccuracy.innerText = "Accuracy: --";
+            state.statSpeed.innerText = "0.0";
+            state.statDistance.innerText = "0.00";
+            state.overlayCoords.innerText = "GPS: --, --";
+            state.overlaySpeed.innerText = "0.0 km/h";
+            
+            state.lastPosition = null;
+        }
+
+        // --- SIMULATED GPS FOR DEMONSTRATIONS ---
+        function simulateLocationMovement() {
+            let baseLat = 19.15;
+            let baseLng = 72.95;
+            
+            state.latitude = baseLat;
+            state.longitude = baseLng;
+            state.gpsAccuracy = 3.5;
+            state.speed = 45.5; // km/h
+
+            const gpsIcon = document.getElementById('gps-icon');
+            gpsIcon.className = "fa-solid fa-satellite-dish text-cyber-neonGreen animate-pulse";
+            state.statGps.innerText = "SIM ACTIVE";
+            state.statGps.className = "text-xl font-extrabold tracking-tight text-cyber-neonGreen";
+            state.statGpsAccuracy.innerText = "Accuracy: ±3m (Mock)";
+
+            state.demoIntervalId = setInterval(() => {
+                baseLat += (Math.random() - 0.4) * 0.00015;
+                baseLng += (Math.random() - 0.3) * 0.00015;
+                
+                state.latitude = baseLat;
+                state.longitude = baseLng;
+                
+                state.speed = parseFloat((40 + Math.random() * 15).toFixed(1));
+                
+                const deltaDist = 0.015 + Math.random() * 0.005;
+                state.totalDistance += deltaDist;
+                
+                state.statDistance.innerText = state.totalDistance.toFixed(2);
+                state.statSpeed.innerText = state.speed;
+                state.overlayCoords.innerText = `GPS: ${baseLat.toFixed(5)}, ${baseLng.toFixed(5)}`;
+                state.overlaySpeed.innerText = `${state.speed} km/h`;
+            }, 1000);
+        }
+
+        // --- FRAME EXTRACTOR & base64 SEND LOOP ---
+        function captureFrame() {
+            if (!state.videoEl.srcObject && !state.demoMode) return null;
+
+            const targetWidth = state.resolutionPreset;
+            const aspect = state.videoEl.videoHeight / state.videoEl.videoWidth || 0.75;
+            const targetHeight = Math.round(targetWidth * aspect);
+
+            state.canvas.width = targetWidth;
+            state.canvas.height = targetHeight;
+
+            const ctx = state.canvas.getContext('2d');
+            
+            if (state.demoMode) {
+                // Generate colorful mock canvas frames if running locally without camera access
+                ctx.fillStyle = '#08080C';
+                ctx.fillRect(0, 0, targetWidth, targetHeight);
+                ctx.fillStyle = '#12121A';
+                ctx.fillRect(10, 10, targetWidth - 20, targetHeight - 20);
+                
+                ctx.fillStyle = '#45A29E';
+                ctx.font = '16px monospace';
+                ctx.fillText(`SIMULATED CAMERA - COMPLIANT FEED`, 30, 40);
+                ctx.fillText(`Trip time: ${new Date().toLocaleTimeString()}`, 30, 70);
+                
+                // Draw a circle simulating road lane lines
+                ctx.strokeStyle = '#2A2A3E';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(targetWidth/2, targetHeight);
+                ctx.lineTo(targetWidth/2 - 50, targetHeight/2);
+                ctx.moveTo(targetWidth/2, targetHeight);
+                ctx.lineTo(targetWidth/2 + 50, targetHeight/2);
+                ctx.stroke();
+            } else {
+                ctx.drawImage(state.videoEl, 0, 0, targetWidth, targetHeight);
+            }
+
+            return state.canvas.toDataURL('image/jpeg', 0.7); // 0.7 quality to optimize payload
+        }
+
+        async function sendAnalysisRequest() {
+            // Heartbeat animation pulse start
+            state.heartbeatDot.className = "w-3.5 h-3.5 rounded-full bg-cyber-accent scale-110";
+            state.heartbeatRing.className = "w-10 h-10 rounded-full border border-cyber-accent/60 flex items-center justify-center";
+            
+            const flash = document.getElementById('frame-ping-flash');
+            flash.style.transform = 'scale(1)';
+            setTimeout(() => flash.style.transform = 'scale(0)', 150);
+
+            const base64Img = captureFrame();
+            if (!base64Img) {
+                resetPulseIndicator('warning');
+                return;
+            }
+
+            // Assemble structured payload
+            const payload = {
+                image: base64Img,
+                latitude: state.latitude,
+                longitude: state.longitude,
+                speed: state.speed,
+                accuracy: state.gpsAccuracy,
+                timestamp: Date.now() / 1000,
+                userId: localStorage.getItem('userId') || 'Guest',
+                whatsappNumber: state.whatsappNumber
+            };
+
+            // Capture interval stats
+            state.framesCount++;
+            state.sessionFramesCount.innerText = state.framesCount;
+
+            // Handle SIMULATION mode mock detections
+            if (state.demoMode) {
+                setTimeout(() => {
+                    const isSpotted = Math.random() < 0.22; // 22% probability
+                    if (isSpotted) {
+                        const sev = Math.random() < 0.35 ? 'High' : 'Medium';
+                        state.potholesCount++;
+                        state.statPotholes.innerText = state.potholesCount;
+                        
+                        showPotholeToast(sev, state.latitude || 19.15, state.longitude || 72.95);
+                        playAlertSound(sev);
+                        
+                        // Flash red panel
+                        state.heartbeatDot.className = "w-3.5 h-3.5 rounded-full bg-cyber-pink scale-125 shadow-glow-pink";
+                        state.heartbeatRing.className = "w-10 h-10 rounded-full border border-cyber-pink flex items-center justify-center";
+                        setTimeout(() => resetPulseIndicator('success'), 600);
+                        
+                        // Register locally in simulated history
+                        saveSimulatedDetection(sev, state.latitude || 19.15, state.longitude || 72.95);
+                    } else {
+                        resetPulseIndicator('success');
+                    }
+                }, 400);
+                return;
+            }
+
+            // Normal dynamic cloud API post request
+            const targetApiUrl = state.backendUrl || window.location.origin;
+            const fullEndpoint = `${targetApiUrl}/api/analyze`;
+
+            try {
+                const response = await fetch(fullEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': '69420'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error(`HTTP error status ${response.status}: ${response.statusText}`);
+                
+                const data = await response.json();
+                
+                // Process positive Cloud YOLO response
+                if (data.status === 'success' || data.pothole_spotted) {
+                    resetPulseIndicator('success');
+                    
+                    if (data.pothole_spotted) {
+                        const sev = data.severity || 'Medium';
+                        state.potholesCount++;
+                        state.statPotholes.innerText = state.potholesCount;
+                        
+                        showPotholeToast(sev, data.lat || state.latitude, data.lng || state.longitude);
+                        playAlertSound(sev);
+                        
+                        // Heartbeat flash red for spotted
+                        state.heartbeatDot.className = "w-3.5 h-3.5 rounded-full bg-cyber-pink scale-125 shadow-glow-pink";
+                        state.heartbeatRing.className = "w-10 h-10 rounded-full border border-cyber-pink flex items-center justify-center";
+                    }
+                } else {
+                    resetPulseIndicator('warning');
+                }
+            } catch (err) {
+                console.error("[CLOUD] Frame analysis request failure. Details:", err);
+                resetPulseIndicator('error');
+            }
+        }
+
+        // Stores simulated mapping coordinates locally in localStorage history for demo experience
+        function saveSimulatedDetection(severity, lat, lng) {
+            try {
+                const username = localStorage.getItem('userId') || 'Guest';
+                const storageKey = `roadguard_sim_history_${username}`;
+                const mockLogs = JSON.parse(localStorage.getItem(storageKey)) || [];
+                mockLogs.push({
+                    id: Math.floor(Math.random() * 900000) + 100000,
+                    lat: lat,
+                    lng: lng,
+                    severity: severity,
+                    timestamp: Date.now() / 1000,
+                    detection_count: 1,
+                    simulated: true
+                });
+                localStorage.setItem(storageKey, JSON.stringify(mockLogs));
+            } catch (e) {
+                console.warn("[DEMO HISTORY] Failed recording mock history coordinates:", e);
+            }
+        }
+
+        function resetPulseIndicator(status) {
+            setTimeout(() => {
+                if (status === 'success') {
+                    state.heartbeatDot.className = "w-3.5 h-3.5 rounded-full bg-cyber-neonGreen";
+                    state.heartbeatRing.className = "w-10 h-10 rounded-full border border-cyber-neonGreen/30 flex items-center justify-center";
+                    
+                    state.apiPill.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950/40 text-cyber-neonGreen border border-cyber-neonGreen/30";
+                    state.apiDot.className = "w-2 h-2 rounded-full bg-cyber-neonGreen animate-pulse";
+                    state.apiText.innerText = state.demoMode ? "SIMULATING" : "ACTIVE UPLINK";
+                } else if (status === 'warning') {
+                    state.heartbeatDot.className = "w-3.5 h-3.5 rounded-full bg-cyber-neonYellow";
+                    state.heartbeatRing.className = "w-10 h-10 rounded-full border border-cyber-neonYellow/30 flex items-center justify-center";
+                } else {
+                    state.heartbeatDot.className = "w-3.5 h-3.5 rounded-full bg-red-500";
+                    state.heartbeatRing.className = "w-10 h-10 rounded-full border border-red-500/30 flex items-center justify-center";
+                    
+                    state.apiPill.className = "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-950/40 text-red-400 border border-red-500/20";
+                    state.apiDot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
+                    state.apiText.innerText = "CONN ERROR";
+                }
+            }, 300);
+        }
+
+        // --- SESSION TRIP INITIATOR CONTROLLERS ---
+        async function startTrip() {
+            state.isTripActive = true;
+            state.framesCount = 0;
+            state.potholesCount = 0;
+            state.totalDistance = 0;
+            state.routeCoordinates = [];
+            
+            // Random trip identifier
+            state.tripId = 'TRIP-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+            
+            // Update UI initial
+            state.statPotholes.innerText = '0';
+            state.sessionTripId.innerText = state.tripId;
+            state.sessionFramesCount.innerText = '0';
+
+            state.toggleTripBtn.className = "w-full py-4 px-6 rounded-xl font-bold text-lg tracking-wide uppercase transition-all duration-300 shadow-glow-pink bg-gradient-to-r from-red-600 to-cyber-pink text-white hover:opacity-95 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-3";
+            state.toggleTripBtn.innerHTML = `<i class="fa-solid fa-square-full text-xs"></i> <span>Stop Active Trip</span>`;
+
+            // Active camera & GPS trackers
+            if (!state.demoMode) {
+                await startCamera();
+            } else {
+                state.placeholderEl.classList.add('hidden');
+                state.videoEl.classList.remove('hidden');
+                state.overlayEl.classList.remove('hidden');
+                
+                // Fallback demo zoom scale initialization
+                const zoomVal = parseFloat(document.getElementById('slider-zoom').value);
+                state.videoEl.style.transform = `scale(${zoomVal})`;
+                state.videoEl.style.transformOrigin = 'center';
+            }
+
+            startLocationTracking();
+
+            // Try to notify the backend about trip start if a backend exists and not in demo mode
+            if (!state.demoMode && state.backendUrl) {
+                try {
+                    const response = await fetch(`${state.backendUrl}/api/start_trip`, { 
+                        method: 'POST',
+                        headers: {
+                            'ngrok-skip-browser-warning': '69420'
+                        }
+                    });
+                    if (!response.ok) {
+                        console.error(`[CLOUD] start_trip response failed with status ${response.status}: ${response.statusText}`);
+                    }
+                } catch (e) {
+                    console.error("[CLOUD] Failed to notify backend of start_trip, running decoupled fallback. Details:", e);
+                }
+            }
+
+            // Kickstart interval frame analyzer - every 2 seconds
+            state.captureIntervalId = setInterval(sendAnalysisRequest, 2000);
+            
+            // Alert user visually and audibly
+            playAlertSound('Medium');
+        }
+
+        async function stopTrip() {
+            state.isTripActive = false;
+
+            state.toggleTripBtn.className = "w-full py-4 px-6 rounded-xl font-bold text-lg tracking-wide uppercase transition-all duration-300 shadow-glow-cyan bg-gradient-to-r from-cyber-accent to-cyber-neonCyan text-cyber-bg hover:opacity-95 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-3";
+            state.toggleTripBtn.innerHTML = `<i class="fa-solid fa-route"></i> <span>Start Trip Mapping</span>`;
+
+            // Clear loop intervals
+            if (state.captureIntervalId) {
+                clearInterval(state.captureIntervalId);
+                state.captureIntervalId = null;
+            }
+
+            // Halt camera and geolocation tracking
+            stopCamera();
+            stopLocationTracking();
+
+            // Try to notify backend about ending trip
+            if (!state.demoMode && state.backendUrl) {
+                try {
+                    const response = await fetch(`${state.backendUrl}/api/end_trip`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'ngrok-skip-browser-warning': '69420'
+                        },
+                        body: JSON.stringify({
+                            distance_traveled: `${state.totalDistance.toFixed(2)} km`,
+                            total_potholes: state.potholesCount,
+                            route_coordinates: state.routeCoordinates
+                        })
+                    });
+                    if (!response.ok) {
+                        console.error(`[CLOUD] end_trip response failed with status ${response.status}: ${response.statusText}`);
+                    }
+                } catch (e) {
+                    console.error("[CLOUD] Failed to notify backend of end_trip, running decoupled fallback. Details:", e);
+                }
+            }
+
+            // Final state resets
+            state.heartbeatDot.className = "w-3.5 h-3.5 rounded-full bg-gray-600";
+            state.heartbeatRing.className = "w-10 h-10 rounded-full border border-cyber-border flex items-center justify-center";
+            updateBackendStatusIndicator();
+            
+            playAlertSound('Medium');
+            alert(`Trip Concluded successfully!\nDistance Covered: ${state.totalDistance.toFixed(2)} km\nPotholes spotted: ${state.potholesCount}`);
+        }
+
+        // --- INTERACTIVE EVENT BINDERS ---
+        
+        // Settings Modal toggles
+        function openModal() {
+            state.settingsModal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            state.settingsModal.classList.add('hidden');
+        }
+
+        // --- WINDOW BOOTSTRAP INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            // Auth security check
+            const userId = localStorage.getItem('userId');
+            if (!userId) {
+                window.location.href = 'index.html';
+                return;
+            }
+            document.getElementById('header-username').innerText = userId;
+
+            // Load persistent configurations
+            loadSettings();
+
+            // Modal Trigger handlers
+            state.settingsBtn.addEventListener('click', openModal);
+            state.closeModalBtn.addEventListener('click', closeModal);
+            state.saveSettingsBtn.addEventListener('click', saveSettings);
+            state.settingsModal.addEventListener('click', (e) => {
+                if (e.target === state.settingsModal) closeModal();
+            });
+
+            // Trip controller handler
+            state.toggleTripBtn.addEventListener('click', () => {
+                if (!state.isTripActive) {
+                    startTrip();
+                } else {
+                    stopTrip();
+                }
+            });
+
+            // Fullscreen Toggle Handler
+            const fullscreenBtn = document.getElementById('btn-fullscreen');
+            const cameraContainer = document.getElementById('camera-container');
+
+            fullscreenBtn.addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    cameraContainer.requestFullscreen().catch(err => {
+                        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            });
+
+            document.addEventListener('fullscreenchange', () => {
+                const icon = fullscreenBtn.querySelector('i');
+                if (document.fullscreenElement === cameraContainer) {
+                    icon.className = 'fa-solid fa-compress text-base';
+                } else {
+                    icon.className = 'fa-solid fa-expand text-base';
+                }
+            });
+
+            // Camera Zoom Control Handler
+            const zoomSlider = document.getElementById('slider-zoom');
+            const zoomValueDisplay = document.getElementById('zoom-value');
+
+            zoomSlider.addEventListener('input', async (e) => {
+                const val = parseFloat(e.target.value);
+                zoomValueDisplay.innerText = val.toFixed(1);
+                
+                if (state.videoStream) {
+                    const tracks = state.videoStream.getVideoTracks();
+                    if (tracks.length > 0) {
+                        const track = tracks[0];
+                        try {
+                            const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                            if (capabilities.zoom) {
+                                const minZoom = capabilities.zoom.min || 1;
+                                const maxZoom = capabilities.zoom.max || 5;
+                                const clampedZoom = Math.min(maxZoom, Math.max(minZoom, val));
+                                await track.applyConstraints({
+                                    advanced: [{ zoom: clampedZoom }]
+                                });
+                                console.log(`[CAMERA] Applied physical zoom: ${clampedZoom}`);
+                            } else {
+                                // Fallback: CSS digital zoom scale on video element
+                                state.videoEl.style.transform = `scale(${val})`;
+                                state.videoEl.style.transformOrigin = 'center';
+                                console.warn("[CAMERA] Physical zoom not supported. Fallback to CSS digital zoom scale.");
+                            }
+                        } catch (err) {
+                            console.error("[CAMERA] Failed to apply zoom constraint:", err);
+                        }
+                    }
+                } else {
+                    // Fallback for placeholder or demo mode scaling
+                    state.videoEl.style.transform = `scale(${val})`;
+                    state.videoEl.style.transformOrigin = 'center';
+                    console.warn("[CAMERA] Camera offline. Fallback zoom applied visually.");
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="glass-panel p-5" style="max-width: 600px; width: 100%;">
+        
+        <!-- Step 1: Upload -->
+        <div id="step1" class="wizard-step active text-center">
+            <h3 class="text-white mb-3 fw-bold">Report an Infrastructure Issue</h3>
+            <p class="text-white-50 mb-4">Help us keep the city safe. Upload a clear image of the pothole or road damage.</p>
+            
+            <div class="upload-box mb-4" onclick="document.getElementById('fileInput').click()">
+                <i class="fa-solid fa-cloud-arrow-up text-pink mb-3" style="font-size: 3rem;"></i>
+                <h5 class="text-white">Click or drag image here</h5>
+                <p class="text-white-50 small mb-0">Supports JPG, PNG, MP4</p>
+                <input type="file" id="fileInput" class="d-none" accept="image/*,video/*" onchange="nextStep(2)">
+            </div>
+            
+            <button class="btn btn-outline-secondary w-100" style="border-color: rgba(255,255,255,0.1);" onclick="nextStep(2)">Skip Upload</button>
+        </div>
+
+        <!-- Step 2: Location -->
+        <div id="step2" class="wizard-step text-center">
+            <h3 class="text-white mb-3 fw-bold">Auto-Locating...</h3>
+            <p class="text-white-50 mb-4">We are securely fetching your coordinates to pinpoint the damage.</p>
+            
+            <div class="my-5">
+                <i class="fa-solid fa-satellite-dish text-pink blink" style="font-size: 4rem;"></i>
+            </div>
+            
+            <div class="p-3 mb-4 rounded" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05);">
+                <p class="text-white mb-1 font-monospace" id="locStatus">Requesting permission...</p>
+                <small class="text-white-50 font-monospace" id="coordsDisplay">LAT: --- | LNG: ---</small>
+            </div>
+            
+            <div class="d-flex gap-3">
+                <button class="btn btn-outline-secondary flex-fill" onclick="prevStep(1)">Back</button>
+                <button class="btn btn-pink flex-fill" id="btnSubmit" disabled onclick="submitToCloud()">Submit to City Cloud</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Success -->
+        <div id="step3" class="wizard-step text-center">
+            <div class="mb-4">
+                <i class="fa-solid fa-circle-check text-success" style="font-size: 5rem; text-shadow: 0 0 30px rgba(25, 135, 84, 0.5);"></i>
+            </div>
+            <h3 class="text-white mb-3 fw-bold">Submission Successful!</h3>
+            <p class="text-white-50 mb-4">Your report has been encrypted and sent to the RoadGuard AI cloud. Maintenance crews have been notified.</p>
+            
+            <div class="p-3 mb-4 rounded text-start" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05);">
+                <small class="text-white-50 d-block mb-1">REFERENCE ID:</small>
+                <span class="text-white font-monospace">#RG-CITIZEN-<span id="refId"></span></span>
+            </div>
+
+            <button class="btn btn-pink w-100" onclick="window.location.reload()">Report Another Issue</button>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    @keyframes blink { 50% { opacity: 0.3; transform: scale(0.95); } }
+    .blink { animation: blink 1.5s infinite; }
+</style>
+
+<script>
+    function nextStep(step) {
+        document.querySelectorAll('.wizard-step').forEach(el => el.classList.remove('active'));
+        document.getElementById('step' + step).classList.add('active');
+        
+        if(step === 2) {
+            getLocation();
+        }
+    }
+    
+    function prevStep(step) {
+        document.querySelectorAll('.wizard-step').forEach(el => el.classList.remove('active'));
+        document.getElementById('step' + step).classList.add('active');
+    }
+
+    function getLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((position) => {
+                document.getElementById('locStatus').innerText = "Location Acquired";
+                document.getElementById('locStatus').classList.replace('text-white', 'text-success');
+                document.getElementById('coordsDisplay').innerText = `LAT: ${position.coords.latitude.toFixed(6)} | LNG: ${position.coords.longitude.toFixed(6)}`;
+                
+                // Also update global backend location
+                fetch('/update_location', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ lat: position.coords.latitude, lng: position.coords.longitude })
+                });
+
+                document.getElementById('btnSubmit').disabled = false;
+            }, (error) => {
+                document.getElementById('locStatus').innerText = "Location Denied/Failed";
+                document.getElementById('locStatus').classList.replace('text-white', 'text-danger');
+                document.getElementById('coordsDisplay').innerText = "Manual review required.";
+                document.getElementById('btnSubmit').disabled = false; // allow submit anyway
+            });
+        } else {
+            document.getElementById('locStatus').innerText = "Geolocation not supported.";
+        }
+    }
+
+    function submitToCloud() {
+        const btn = document.getElementById('btnSubmit');
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Encrypting...';
+        btn.disabled = true;
+        
+        // Mock API call to Firebase/Cloud
+        setTimeout(() => {
+            document.getElementById('refId').innerText = Math.floor(100000 + Math.random() * 900000);
+            nextStep(3);
+        }, 1500);
+    }
+</script>
+{% endblock %}

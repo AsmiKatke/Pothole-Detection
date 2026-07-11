@@ -1,0 +1,5 @@
+Flask==3.0.0
+opencv-python==4.8.1.78
+ultralytics==8.0.222
+requests==2.31.0
+twilio==9.10.9

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoadGuard AI - Crowdsourced Pothole Detection</title>
+    <!-- Google Fonts: Outfit & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        cyber: {
+                            bg: '#06060A',
+                            card: '#0F0F16',
+                            border: '#1E1E2F',
+                            accent: '#45A29E',
+                            pink: '#FF4B72',
+                            neonCyan: '#00F0FF',
+                            neonGreen: '#39FF14'
+                        }
+                    },
+                    boxShadow: {
+                        'glow-pink': '0 0 25px rgba(255, 75, 114, 0.45)',
+                        'glow-cyan': '0 0 25px rgba(0, 240, 255, 0.45)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-panel {
+            background: rgba(15, 15, 22, 0.65);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .glow-line {
+            background: linear-gradient(90deg, transparent, #FF4B72, #00F0FF, transparent);
+            height: 2px;
+        }
+        .text-glow {
+            text-shadow: 0 0 15px rgba(255, 75, 114, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-cyber-bg text-gray-200 font-sans min-h-screen flex flex-col justify-between selection:bg-cyber-pink selection:text-white relative overflow-x-hidden">
+
+    <!-- Decorative background elements -->
+    <div class="absolute -top-40 -left-40 w-96 h-96 bg-cyber-pink/10 rounded-full blur-[120px] pointer-events-none"></div>
+    <div class="absolute top-1/2 -right-40 w-96 h-96 bg-cyber-neonCyan/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+    <!-- MAIN LANDING CONTAINER -->
+    <div class="flex-grow flex flex-col justify-center items-center px-4 py-12 relative z-10">
+        
+        <!-- HERO SEGMENT -->
+        <div class="w-full max-w-4xl text-center flex flex-col items-center gap-6">
+            
+            <!-- Dynamic Glowing Logo badge -->
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyber-pink to-cyber-neonCyan flex items-center justify-center text-white text-3xl font-bold shadow-glow-pink animate-[pulse_3s_infinite] mb-2">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+
+            <!-- Title -->
+            <div class="space-y-2">
+                <h1 class="text-4xl sm:text-6xl font-black tracking-tight leading-none bg-gradient-to-r from-white via-gray-100 to-gray-400 bg-clip-text text-transparent">
+                    ROADGUARD <span class="bg-gradient-to-r from-cyber-pink to-cyber-neonCyan bg-clip-text text-transparent text-glow">AI</span>
+                </h1>
+                <p class="text-sm sm:text-base text-cyber-neonCyan font-mono tracking-[0.25em] uppercase font-bold">
+                    Crowdsource Safe Roads. Drive & Earn.
+                </p>
+                <div class="text-xs text-gray-500 font-semibold tracking-wider uppercase mt-1">
+                    Administered by Asmi, Anushka & Sneha
+                </div>
+            </div>
+
+            <!-- Brief Tagline description -->
+            <p class="text-gray-400 text-sm sm:text-base max-w-xl leading-relaxed">
+                Empowering communities to automatically map and report potholes using AI edge computation. Simply mount your smartphone and begin active infrastructure tracking today.
+            </p>
+
+            <!-- ACTION BUTTON: Open login session modal -->
+            <div class="mt-4 flex flex-col sm:flex-row gap-4 items-center justify-center w-full">
+                <button id="btn-open-login" class="px-8 py-4 rounded-xl font-extrabold text-base tracking-wide uppercase transition-all duration-300 shadow-glow-pink bg-gradient-to-r from-cyber-pink to-red-500 text-white hover:scale-105 active:scale-95 flex items-center gap-3">
+                    <i class="fa-solid fa-route text-lg"></i>
+                    <span>Start Driving Now</span>
+                </button>
+                <a href="admin.html" class="px-8 py-4 rounded-xl font-bold text-base tracking-wide uppercase transition-all duration-300 border border-cyber-border bg-[#0f0f16]/60 text-gray-400 hover:text-white hover:border-cyber-neonCyan hover:shadow-glow-cyan flex items-center gap-3">
+                    <i class="fa-solid fa-tower-radar text-lg"></i>
+                    <span>Admin Command Center</span>
+                </a>
+            </div>
+
+        </div>
+
+        <!-- 3-STEP TIMELINE USER GUIDE -->
+        <div class="w-full max-w-4xl mt-20">
+            <h2 class="text-center text-xs font-black tracking-[0.2em] text-gray-500 uppercase mb-8">How to Join the Network</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- STEP 1 -->
+                <div class="glass-panel rounded-2xl p-6 relative group hover:border-cyber-pink/30 transition-all duration-300">
+                    <div class="absolute -top-5 left-6 w-10 h-10 rounded-xl bg-cyber-card border border-cyber-border flex items-center justify-center text-cyber-pink font-bold text-sm">01</div>
+                    <div class="text-cyber-pink text-2xl mb-4 mt-2">
+                        <i class="fa-solid fa-mobile-screen-button"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-white mb-2">Mount Phone</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed">
+                        Secure your mobile phone on a dashboard or windshield mount with the rear-camera facing the road ahead.
+                    </p>
+                </div>
+
+                <!-- STEP 2 -->
+                <div class="glass-panel rounded-2xl p-6 relative group hover:border-cyber-neonCyan/30 transition-all duration-300">
+                    <div class="absolute -top-5 left-6 w-10 h-10 rounded-xl bg-cyber-card border border-cyber-border flex items-center justify-center text-cyber-neonCyan font-bold text-sm">02</div>
+                    <div class="text-cyber-neonCyan text-2xl mb-4 mt-2">
+                        <i class="fa-solid fa-sliders"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-white mb-2">Configure Settings</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed">
+                        Input your backend Ngrok API URL and your Telegram Chat ID in settings to receive instant alerts of spotted hazards.
+                    </p>
+                </div>
+
+                <!-- STEP 3 -->
+                <div class="glass-panel rounded-2xl p-6 relative group hover:border-cyber-neonGreen/30 transition-all duration-300">
+                    <div class="absolute -top-5 left-6 w-10 h-10 rounded-xl bg-cyber-card border border-cyber-border flex items-center justify-center text-cyber-neonGreen font-bold text-sm">03</div>
+                    <div class="text-cyber-neonGreen text-2xl mb-4 mt-2">
+                        <i class="fa-solid fa-compass"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-white mb-2">Drive & Map</h3>
+                    <p class="text-xs text-gray-400 leading-relaxed">
+                        Drive normally. The edge computer continuously analyzes road frames, automatically mapping detected potholes.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="w-full glass-panel py-5 text-center border-t border-cyber-border mt-auto relative z-10">
+        <p class="text-xs text-gray-500">
+            RoadGuard AI • Mobile-First Infrastructure Integrity Ingestion Uplink • Crafted by Asmi, Anushka & Sneha
+        </p>
+    </footer>
+
+    <!-- AUTHENTICATION LOGIN MODAL -->
+    <div id="modal-login" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="glass-panel rounded-2xl border border-cyber-border w-full max-w-sm overflow-hidden shadow-2xl relative animate-[fadeIn_0.2s_ease-out]">
+            <div class="glow-line absolute top-0 left-0 w-full"></div>
+            
+            <!-- Modal Header -->
+            <div class="p-6 border-b border-cyber-border flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-user-pen text-cyber-pink text-lg"></i>
+                    <h3 class="text-base font-bold text-white uppercase tracking-wider">Rider Profile Activation</h3>
+                </div>
+                <button id="modal-close" class="text-gray-400 hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content (Username Form) -->
+            <form id="form-login" class="p-6 flex flex-col gap-4">
+                <div>
+                    <label for="input-username" class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Rider Username</label>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500">
+                            <i class="fa-solid fa-user text-sm"></i>
+                        </span>
+                        <input id="input-username" required type="text" placeholder="e.g. Asmi_Katke" class="w-full bg-[#0d0d14] border border-cyber-border rounded-xl py-3 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-cyber-pink focus:ring-1 focus:ring-cyber-pink transition-all duration-300 font-bold tracking-wide">
+                    </div>
+                    <p class="text-[10px] text-gray-500 leading-relaxed mt-2">
+                        Enter your username to personalize your telemetry history leaderboard scores and keep track of your mappings.
+                    </p>
+                </div>
+
+                <button type="submit" class="w-full py-3 px-4 rounded-xl font-bold text-xs uppercase hover:bg-cyber-pink/90 active:scale-95 transition-all duration-200 bg-cyber-pink text-white shadow-glow-pink flex items-center justify-center gap-2 mt-2">
+                    <span>Activate Session & Drive</span>
+                    <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN INTERACTIVE EVENTS JS -->
+    <script>
+        const modal = document.getElementById('modal-login');
+        const openBtn = document.getElementById('btn-open-login');
+        const closeBtn = document.getElementById('modal-close');
+        const loginForm = document.getElementById('form-login');
+        const usernameInput = document.getElementById('input-username');
+
+        // Check if user is already logged in, set default placeholder
+        const existingUser = localStorage.getItem('userId');
+        if (existingUser) {
+            usernameInput.value = existingUser;
+        }
+
+        function openModal() {
+            modal.classList.remove('hidden');
+            usernameInput.focus();
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
+
+        openBtn.addEventListener('click', openModal);
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const username = usernameInput.value.trim();
+            if (username) {
+                localStorage.setItem('userId', username);
+                closeModal();
+                // Route to rider dashboard
+                window.location.href = 'rider_dashboard.html';
+            }
+        });
+    </script>
+</body>
+</html>

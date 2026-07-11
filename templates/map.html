@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid h-100 d-flex flex-column">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="display-6 fw-bold text-white mb-2">Live Trip Tracking</h1>
+                <p class="text-white-50 mb-0">Record your route and dynamically map anomalies.</p>
+            </div>
+            
+            <!-- Trip Control Panel -->
+            <div class="glass-panel p-2 d-flex gap-3 align-items-center" style="background: rgba(255, 75, 114, 0.1);">
+                <span id="tripStatus" class="badge bg-secondary text-uppercase fw-bold"><i class="fa-solid fa-car me-2"></i>Trip Inactive</span>
+                <button id="btnStartTrip" class="btn btn-sm btn-success fw-bold px-4"><i class="fa-solid fa-play me-2"></i>Start Drive</button>
+                <button id="btnEndTrip" class="btn btn-sm btn-danger fw-bold px-4" style="display: none;"><i class="fa-solid fa-stop me-2"></i>End Drive</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row flex-grow-1">
+        <div class="col-12 h-100">
+            <div class="glass-panel p-2 h-100 position-relative">
+                <div id="map" style="height: 100%; width: 100%; border-radius: 12px; z-index: 1;"></div>
+                
+                <!-- Floating Legend -->
+                <div class="glass-panel p-3 position-absolute" style="bottom: 30px; left: 30px; z-index: 1000; max-width: 300px; background: rgba(11, 12, 16, 0.85);">
+                    <h6 class="text-white border-bottom border-secondary pb-2 mb-3"><i class="fa-solid fa-circle-info text-pink me-2"></i>Live Legend</h6>
+                    <div class="d-flex align-items-center mb-2">
+                        <div style="background-color:#FF4B72; width:14px; height:14px; border-radius:50%; box-shadow: 0 0 15px #FF4B72; border: 2px solid white; margin-right: 10px;"></div>
+                        <span class="text-white fw-bold small">High Severity (Alert Sent)</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-3">
+                        <div style="background-color:#FF9800; width:12px; height:12px; border-radius:50%; border: 2px solid white; margin-right: 10px;"></div>
+                        <span class="text-white-50 small">Low/Medium Severity</span>
+                    </div>
+                    <hr class="border-secondary mb-3 mt-0">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-white-50 small text-uppercase">Trip Distance:</span>
+                        <span id="distDisplay" class="text-pink fw-bold font-monospace">0.00 km</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+        background: #0B0C10;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+    .leaflet-popup-content { margin: 0; color: white; }
+    .leaflet-container a.leaflet-popup-close-button { color: #E0E2E6; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let map;
+    let markersLayer;
+    let routePolyline;
+    
+    // Trip State
+    let isTracking = false;
+    let watchId = null;
+    let routeCoordinates = [];
+    let currentTripId = null;
+    
+    // Stats accumulators
+    let totalPotholes = 0;
+    let highSeverityAlerts = 0;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Map
+        map = L.map('map', { zoomControl: false }).setView([18.5204, 73.8567], 15);
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; CARTO',
+            maxZoom: 20
+        }).addTo(map);
+
+        markersLayer = L.layerGroup().addTo(map);
+        routePolyline = L.polyline([], { color: '#00BCD4', weight: 5, opacity: 0.8 }).addTo(map);
+
+        // Fetch initial data immediately, then poll
+        fetchPotholes();
+        setInterval(fetchPotholes, 5000);
+    });
+
+    // ==========================================
+    // Haversine Distance Calculation (Math)
+    // ==========================================
+    function calculateHaversineDistance(coordsArray) {
+        if (coordsArray.length < 2) return 0;
+        let totalDistance = 0;
+        const R = 6371; // Earth's radius in kilometers
+
+        for (let i = 0; i < coordsArray.length - 1; i++) {
+            let lat1 = coordsArray[i][0], lon1 = coordsArray[i][1];
+            let lat2 = coordsArray[i+1][0], lon2 = coordsArray[i+1][1];
+
+            // Convert degrees to radians
+            let dLat = (lat2 - lat1) * Math.PI / 180;
+            let dLon = (lon2 - lon1) * Math.PI / 180;
+            
+            // Haversine Formula
+            let a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            
+            totalDistance += R * c; // Dist in km
+        }
+        return totalDistance.toFixed(2);
+    }
+
+    // ==========================================
+    // Trip Controls
+    // ==========================================
+    document.getElementById('btnStartTrip').addEventListener('click', () => {
+        // Ping backend to start trip
+        fetch('/api/start_trip', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            currentTripId = data.trip_id;
+            isTracking = true;
+            routeCoordinates = [];
+            totalPotholes = 0;
+            highSeverityAlerts = 0;
+            
+            routePolyline.setLatLngs([]);
+            markersLayer.clearLayers();
+            
+            document.getElementById('btnStartTrip').style.display = 'none';
+            document.getElementById('btnEndTrip').style.display = 'block';
+            
+            let status = document.getElementById('tripStatus');
+            status.className = "badge bg-pink text-uppercase fw-bold blink";
+            status.innerHTML = `<i class="fa-solid fa-satellite-dish me-2"></i>Tracking: ${currentTripId}`;
+
+            // Start Live GPS Tracking
+            if (navigator.geolocation) {
+                watchId = navigator.geolocation.watchPosition((position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    routeCoordinates.push([lat, lng]);
+                    routePolyline.addLatLng([lat, lng]);
+                    
+                    // Recenter map smoothly
+                    map.panTo([lat, lng]);
+                    
+                    // Update live distance
+                    document.getElementById('distDisplay').innerText = calculateHaversineDistance(routeCoordinates) + " km";
+                    
+                }, (err) => console.error(err), { enableHighAccuracy: true });
+            }
+        });
+    });
+
+    document.getElementById('btnEndTrip').addEventListener('click', () => {
+        isTracking = false;
+        if (watchId) navigator.geolocation.clearWatch(watchId);
+        
+        let finalDistance = calculateHaversineDistance(routeCoordinates) + " km";
+        let startLoc = routeCoordinates.length > 0 ? routeCoordinates[0] : null;
+        let endLoc = routeCoordinates.length > 0 ? routeCoordinates[routeCoordinates.length - 1] : null;
+
+        // Save Trip to Backend
+        fetch('/api/end_trip', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                start_location: startLoc,
+                end_location: endLoc,
+                distance_traveled: finalDistance,
+                route_coordinates: routeCoordinates,
+                total_potholes: totalPotholes,
+                high_severity_alerts: highSeverityAlerts
+            })
+        }).then(() => {
+            document.getElementById('btnStartTrip').style.display = 'block';
+            document.getElementById('btnEndTrip').style.display = 'none';
+            
+            let status = document.getElementById('tripStatus');
+            status.className = "badge bg-secondary text-uppercase fw-bold";
+            status.innerHTML = `<i class="fa-solid fa-car me-2"></i>Trip Saved`;
+            
+            alert(`Trip Complete!\nDistance: ${finalDistance}\nPotholes Found: ${totalPotholes}`);
+            window.location.href = '/trip_stats';
+        });
+    });
+
+    // ==========================================
+    // Dynamic Pin Dropping
+    // ==========================================
+    function getIconForSeverity(severity) {
+        if (severity === "High") {
+            return L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style='background-color:#FF4B72; width:18px; height:18px; border-radius:50%; box-shadow: 0 0 20px #FF4B72, 0 0 10px white; border: 2px solid white;'></div>`,
+                iconSize: [18, 18], iconAnchor: [9, 9]
+            });
+        }
+        return L.divIcon({
+            className: 'custom-div-icon',
+            html: `<div style='background-color:#FF9800; width:14px; height:14px; border-radius:50%; border: 2px solid white;'></div>`,
+            iconSize: [14, 14], iconAnchor: [7, 7]
+        });
+    }
+
+    function fetchPotholes() {
+        fetch('/api/potholes')
+            .then(res => res.json())
+            .then(data => {
+                markersLayer.clearLayers();
+                totalPotholes = 0;
+                highSeverityAlerts = 0;
+                
+                data.forEach(pothole => {
+                    // Only show potholes for the active trip, OR show all if not tracking
+                    if (isTracking && pothole.trip_id !== currentTripId) return;
+                    
+                    totalPotholes++;
+                    if (pothole.severity === "High") highSeverityAlerts++;
+                    
+                    const icon = getIconForSeverity(pothole.severity);
+                    const colorStr = pothole.severity === "High" ? "#FF4B72" : "#FF9800";
+                    
+                    const popupContent = `
+                        <div style='padding: 10px; width: 220px;'>
+                            <b style='color:${colorStr}; font-size:1.1rem;'>${pothole.severity} Severity</b>
+                            <hr style="border-color: rgba(255,255,255,0.1); margin: 10px 0;">
+                            <div style="font-size: 0.85rem;">
+                                <i class="fa-solid fa-users text-pink me-2"></i><b>Detected ${pothole.detection_count} Times</b><br>
+                                <span class="text-white-50 mt-2 d-block" style="font-family:monospace; font-size:0.75rem;">Trip: ${pothole.trip_id || 'N/A'}</span>
+                            </div>
+                        </div>
+                    `;
+
+                    L.marker([pothole.lat, pothole.lng], {icon: icon})
+                        .addTo(markersLayer)
+                        .bindPopup(popupContent);
+                });
+            })
+            .catch(err => console.error(err));
+    }
+</script>
+<style>
+    @keyframes blink { 50% { opacity: 0.5; } }
+    .blink { animation: blink 2s infinite; }
+    .bg-pink { background-color: var(--primary-pink) !important; }
+</style>
+{% endblock %}
