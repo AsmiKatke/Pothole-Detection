@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -41,16 +41,20 @@
         }
     </script>
     <style>
+        html {
+            scroll-behavior: smooth;
+        }
         body {
             background-color: #121214;
             background-image: radial-gradient(circle at 10% 10%, rgba(255, 75, 114, 0.18) 0%, #121214 70%);
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
         .glass-card {
             background: rgba(18, 18, 26, 0.55);
             backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 75, 114, 0.12);
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
             position: relative;
             overflow: hidden;
             transform-style: preserve-3d;
@@ -58,6 +62,7 @@
         .glass-card:hover {
             border-color: rgba(255, 75, 114, 0.4);
             box-shadow: 0 10px 30px rgba(255, 75, 114, 0.15);
+            transform: translateY(-4px);
         }
         .text-glow {
             text-shadow: 0 0 20px rgba(255, 75, 114, 0.6);
@@ -71,20 +76,6 @@
             background-size: 40px 40px;
             background-position: center;
         }
-        /* Custom scrollbar for inner container */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(18, 18, 26, 0.2);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 75, 114, 0.3);
-            border-radius: 3px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 75, 114, 0.6);
-        }
         .glare {
             position: absolute;
             top: 0;
@@ -95,18 +86,32 @@
             z-index: 1;
             transition: background 0.1s ease;
         }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #121214;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 75, 114, 0.3);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 75, 114, 0.6);
+        }
     </style>
 </head>
-<body class="text-gray-200 font-sans min-h-screen flex flex-col justify-between selection:bg-cyber-pink selection:text-white relative overflow-hidden">
+<body class="text-gray-200 font-sans min-h-screen flex flex-col selection:bg-cyber-pink selection:text-white relative">
 
     <!-- Three.js 3D Background Canvas -->
-    <div id="three-container" class="absolute inset-0 z-0 pointer-events-none"></div>
+    <div id="three-container" class="fixed inset-0 z-0 pointer-events-none"></div>
 
     <!-- Cyber Grid Static Overlay -->
-    <div class="absolute inset-0 z-1 cyber-grid-overlay pointer-events-none"></div>
+    <div class="fixed inset-0 z-1 cyber-grid-overlay pointer-events-none"></div>
 
-    <!-- HEADER -->
-    <header class="w-full px-6 py-4 flex items-center justify-between relative z-20">
+    <!-- HEADER (Absolute positioned at top) -->
+    <header class="w-full px-6 py-4 flex items-center justify-between absolute top-0 left-0 z-20">
         <div class="flex items-center gap-3">
             <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyber-pink to-cyber-accent flex items-center justify-center text-white text-xl font-bold shadow-glow-pink">
                 <i class="fa-solid fa-shield-halved"></i>
@@ -116,138 +121,140 @@
             </div>
         </div>
         
-        <a href="admin.html" class="px-5 py-2 rounded-xl text-xs font-bold tracking-wider uppercase border border-cyber-border bg-[#121214]/60 text-gray-400 hover:text-white hover:border-cyber-accent hover:shadow-glow-cyan transition-all duration-300 backdrop-blur-md flex items-center gap-2">
+        <a href="admin.html" class="px-4 py-2 rounded-xl text-[10px] sm:text-xs font-bold tracking-wider uppercase border border-cyber-border bg-[#121214]/60 text-gray-400 hover:text-white hover:border-cyber-accent hover:shadow-glow-cyan transition-all duration-300 backdrop-blur-md flex items-center gap-2">
             <i class="fa-solid fa-tower-radar"></i>
             <span>Admin Command Center</span>
         </a>
     </header>
 
-    <!-- MAIN SLIDER VIEWPORT -->
-    <main class="flex-grow w-full flex items-center relative z-10 overflow-hidden">
+    <!-- SECTION 1: HERO VIEW -->
+    <section id="hero-section" class="relative w-full min-h-screen flex flex-col justify-between items-center z-10 px-4 pt-24 pb-6">
         
-        <div id="main-slider" class="flex w-[200vw] h-full transition-transform duration-[1000ms] ease-[cubic-bezier(0.85,0,0.15,1)]">
+        <!-- Center Content -->
+        <div class="my-auto flex flex-col items-center text-center gap-8 max-w-4xl">
+            <!-- Rotating 3D shield emblem -->
+            <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-cyber-pink to-red-600 flex items-center justify-center text-white text-4xl font-bold shadow-glow-pink animate-[pulse_2.5s_infinite] mb-2 transform hover:rotate-12 transition-transform duration-300 cursor-pointer">
+                <i class="fa-solid fa-route"></i>
+            </div>
+
+            <!-- Glowing Title -->
+            <div class="space-y-3">
+                <h1 class="text-5xl sm:text-7xl font-black tracking-tight leading-none bg-gradient-to-b from-white to-gray-400 bg-clip-text text-transparent uppercase">
+                    ROADGUARD <span class="bg-gradient-to-r from-cyber-pink to-cyber-accent bg-clip-text text-transparent text-glow font-extrabold">AI</span>
+                </h1>
+                <p class="text-sm sm:text-base text-cyber-accent font-mono tracking-[0.3em] uppercase font-bold text-glow-cyan">
+                    Crowdsource Safe Roads. Earn Rewards.
+                </p>
+            </div>
+
+            <!-- Description -->
+            <p class="text-gray-400 text-sm sm:text-base max-w-xl leading-relaxed">
+                Empowering drivers to automatically detect, catalog, and report road infrastructure hazards in real-time. Join the decentralised smart mapping network today.
+            </p>
+
+            <!-- CTA Outline Button -->
+            <div class="mt-4">
+                <button id="btn-learn-how" class="px-8 py-4 rounded-xl font-black text-sm tracking-widest uppercase transition-all duration-300 border-2 border-cyber-pink text-cyber-pink hover:bg-cyber-pink/15 hover:shadow-glow-pink hover:scale-105 active:scale-95 flex items-center gap-3">
+                    <span>Learn How</span>
+                    <i class="fa-solid fa-chevron-down text-xs animate-bounce"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer for Hero Section -->
+        <footer class="w-full text-center py-4 select-none">
+            <p class="text-[10px] sm:text-xs font-mono tracking-[0.2em] text-gray-500 uppercase">
+                &lt; Developed by Asmi Katke /&gt;
+            </p>
+        </footer>
+    </section>
+
+    <!-- SECTION 2: HOW IT WORKS SECTION -->
+    <section id="how-it-works" class="relative w-full min-h-screen flex flex-col justify-between items-center z-10 px-4 pt-20 pb-6">
+        
+        <!-- Content Container -->
+        <div class="my-auto flex flex-col items-center gap-8 w-full max-w-5xl">
             
-            <!-- VIEW 1: HERO SEGMENT -->
-            <section class="w-screen h-full flex flex-col justify-center items-center px-4 py-8">
-                <div class="w-full max-w-4xl text-center flex flex-col items-center gap-8">
-                    <!-- Rotating 3D shield emblem -->
-                    <div class="w-20 h-20 rounded-3xl bg-gradient-to-br from-cyber-pink to-red-600 flex items-center justify-center text-white text-4xl font-bold shadow-glow-pink animate-[pulse_2.5s_infinite] mb-2 transform hover:rotate-12 transition-transform duration-300">
-                        <i class="fa-solid fa-route"></i>
-                    </div>
+            <div class="text-center space-y-2">
+                <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white uppercase">
+                    How It <span class="bg-gradient-to-r from-cyber-pink to-cyber-accent bg-clip-text text-transparent text-glow">Works</span>
+                </h2>
+                <p class="text-xs sm:text-sm text-gray-500 font-mono tracking-wider">
+                    Turn your daily commute into a smart city mapping mission.
+                </p>
+            </div>
 
-                    <!-- Glowing Title -->
-                    <div class="space-y-3">
-                        <h1 class="text-5xl sm:text-7xl font-black tracking-tight leading-none bg-gradient-to-b from-white to-gray-400 bg-clip-text text-transparent uppercase">
-                            ROADGUARD <span class="bg-gradient-to-r from-cyber-pink to-cyber-accent bg-clip-text text-transparent text-glow font-extrabold">AI</span>
-                        </h1>
-                        <p class="text-sm sm:text-base text-cyber-accent font-mono tracking-[0.3em] uppercase font-bold text-glow-cyan">
-                            Crowdsource Safe Roads. Earn Rewards.
+            <!-- 3-Step Grid (Responsive layout) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl mt-4 px-4">
+                
+                <!-- CARD 1: Mount Phone -->
+                <div class="glass-card tilt-card rounded-2xl p-6 flex flex-col gap-4 group">
+                    <div class="glare"></div>
+                    <div class="absolute -top-4 -left-4 w-12 h-12 rounded-2xl bg-cyber-bg border border-cyber-border flex items-center justify-center text-cyber-pink font-bold text-sm z-10 shadow-sm">01</div>
+                    <div class="text-cyber-pink text-4xl mt-4 z-10 transition-transform duration-300 group-hover:scale-110">
+                        <i class="fa-solid fa-mobile-screen-button"></i>
+                    </div>
+                    <div class="z-10">
+                        <h3 class="text-base font-extrabold text-white mb-2 uppercase tracking-wide">Mount Phone</h3>
+                        <p class="text-xs text-gray-400 leading-relaxed">
+                            Secure your mobile phone on a dashboard or windshield mount with the rear-camera facing the road ahead.
                         </p>
                     </div>
-
-                    <!-- Description -->
-                    <p class="text-gray-400 text-sm sm:text-base max-w-xl leading-relaxed">
-                        Empowering drivers to automatically detect, catalog, and report road infrastructure hazards in real-time. Join the decentralised smart mapping network today.
-                    </p>
-
-                    <!-- CTA Outline Button -->
-                    <div class="mt-4">
-                        <button id="btn-learn-how" class="px-8 py-4 rounded-xl font-black text-sm tracking-widest uppercase transition-all duration-300 border-2 border-cyber-pink text-cyber-pink hover:bg-cyber-pink/15 hover:shadow-glow-pink hover:scale-105 active:scale-95 flex items-center gap-3">
-                            <span>Learn How</span>
-                            <i class="fa-solid fa-chevron-right text-xs"></i>
-                        </button>
-                    </div>
                 </div>
-            </section>
 
-            <!-- VIEW 2: HOW IT WORKS SECTION -->
-            <section class="w-screen h-full flex flex-col justify-center items-center px-4 py-8 overflow-y-auto">
-                <div class="w-full max-w-5xl flex flex-col items-center gap-8 my-auto">
-                    
-                    <div class="text-center space-y-2">
-                        <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight text-white uppercase">
-                            How It <span class="bg-gradient-to-r from-cyber-pink to-cyber-accent bg-clip-text text-transparent text-glow">Works</span>
-                        </h2>
-                        <p class="text-xs sm:text-sm text-gray-500 font-mono tracking-wider">
-                            Turn your daily commute into a smart city mapping mission.
+                <!-- CARD 2: Link WhatsApp -->
+                <div class="glass-card tilt-card rounded-2xl p-6 flex flex-col gap-4 group">
+                    <div class="glare"></div>
+                    <div class="absolute -top-4 -left-4 w-12 h-12 rounded-2xl bg-cyber-bg border border-cyber-border flex items-center justify-center text-cyber-pink font-bold text-sm z-10 shadow-sm">02</div>
+                    <div class="text-cyber-pink text-4xl mt-4 z-10 transition-transform duration-300 group-hover:scale-110">
+                        <i class="fa-brands fa-whatsapp"></i>
+                    </div>
+                    <div class="z-10">
+                        <h3 class="text-base font-extrabold text-white mb-2 uppercase tracking-wide">Link WhatsApp</h3>
+                        <p class="text-xs text-gray-400 leading-relaxed">
+                            Provide your phone number to receive instant automated alerts when a critical pothole is spotted.
                         </p>
                     </div>
-
-                    <!-- 3-Step Glassmorphic Cards Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl mt-4">
-                        
-                        <!-- CARD 1: Mount Phone -->
-                        <div class="glass-card tilt-card rounded-2xl p-6 flex flex-col gap-4 group">
-                            <div class="glare"></div>
-                            <div class="absolute -top-4 -left-4 w-12 h-12 rounded-2xl bg-cyber-bg border border-cyber-border flex items-center justify-center text-cyber-pink font-bold text-sm z-10">01</div>
-                            <div class="text-cyber-pink text-4xl mt-4 z-10 transition-transform duration-300 group-hover:scale-110">
-                                <i class="fa-solid fa-mobile-screen-button"></i>
-                            </div>
-                            <div class="z-10">
-                                <h3 class="text-base font-extrabold text-white mb-2 uppercase tracking-wide">Mount Phone</h3>
-                                <p class="text-xs text-gray-400 leading-relaxed">
-                                    Secure your mobile phone on a dashboard or windshield mount with the rear-camera facing the road ahead.
-                                </p>
-                            </div>
-                        </div>
-
-                        <!-- CARD 2: Link WhatsApp -->
-                        <div class="glass-card tilt-card rounded-2xl p-6 flex flex-col gap-4 group">
-                            <div class="glare"></div>
-                            <div class="absolute -top-4 -left-4 w-12 h-12 rounded-2xl bg-cyber-bg border border-cyber-border flex items-center justify-center text-cyber-pink font-bold text-sm z-10">02</div>
-                            <div class="text-cyber-pink text-4xl mt-4 z-10 transition-transform duration-300 group-hover:scale-110">
-                                <i class="fa-brands fa-whatsapp"></i>
-                            </div>
-                            <div class="z-10">
-                                <h3 class="text-base font-extrabold text-white mb-2 uppercase tracking-wide">Link WhatsApp</h3>
-                                <p class="text-xs text-gray-400 leading-relaxed">
-                                    Provide your phone number to receive instant automated alerts when a critical pothole is spotted.
-                                </p>
-                            </div>
-                        </div>
-
-                        <!-- CARD 3: Start Driving -->
-                        <div class="glass-card tilt-card rounded-2xl p-6 flex flex-col gap-4 group">
-                            <div class="glare"></div>
-                            <div class="absolute -top-4 -left-4 w-12 h-12 rounded-2xl bg-cyber-bg border border-cyber-border flex items-center justify-center text-cyber-pink font-bold text-sm z-10">03</div>
-                            <div class="text-cyber-pink text-4xl mt-4 z-10 transition-transform duration-300 group-hover:scale-110">
-                                <i class="fa-solid fa-car-side"></i>
-                            </div>
-                            <div class="z-10">
-                                <h3 class="text-base font-extrabold text-white mb-2 uppercase tracking-wide">Start Driving</h3>
-                                <p class="text-xs text-gray-400 leading-relaxed">
-                                    Drive normally. The edge computer continuously analyzes road frames, automatically mapping detected potholes.
-                                </p>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <!-- Glowing pink bottom CTA button -->
-                    <div class="mt-6 flex flex-col items-center gap-4">
-                        <button id="btn-open-login" class="px-10 py-4 rounded-xl font-black text-sm tracking-widest uppercase transition-all duration-300 shadow-glow-pink bg-gradient-to-r from-cyber-pink to-red-500 text-white hover:scale-105 active:scale-95 flex items-center gap-3">
-                            <i class="fa-solid fa-route"></i>
-                            <span>Start Driving</span>
-                        </button>
-                        
-                        <button id="btn-back-hero" class="text-xs font-mono text-gray-500 hover:text-cyber-pink transition-colors duration-200">
-                            <i class="fa-solid fa-arrow-left mr-1"></i> Back to Hero View
-                        </button>
-                    </div>
-
                 </div>
-            </section>
+
+                <!-- CARD 3: Start Driving -->
+                <div class="glass-card tilt-card rounded-2xl p-6 flex flex-col gap-4 group">
+                    <div class="glare"></div>
+                    <div class="absolute -top-4 -left-4 w-12 h-12 rounded-2xl bg-cyber-bg border border-cyber-border flex items-center justify-center text-cyber-pink font-bold text-sm z-10 shadow-sm">03</div>
+                    <div class="text-cyber-pink text-4xl mt-4 z-10 transition-transform duration-300 group-hover:scale-110">
+                        <i class="fa-solid fa-car-side"></i>
+                    </div>
+                    <div class="z-10">
+                        <h3 class="text-base font-extrabold text-white mb-2 uppercase tracking-wide">Start Driving</h3>
+                        <p class="text-xs text-gray-400 leading-relaxed">
+                            Drive normally. The edge computer continuously analyzes road frames, automatically mapping detected potholes.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- CTA Buttons -->
+            <div class="mt-6 flex flex-col items-center gap-4">
+                <button id="btn-open-login" class="px-10 py-4 rounded-xl font-black text-sm tracking-widest uppercase transition-all duration-300 shadow-glow-pink bg-gradient-to-r from-cyber-pink to-red-500 text-white hover:scale-105 active:scale-95 flex items-center gap-3">
+                    <i class="fa-solid fa-route"></i>
+                    <span>Start Driving</span>
+                </button>
+                
+                <button id="btn-back-hero" class="text-xs font-mono text-gray-500 hover:text-cyber-pink transition-colors duration-200">
+                    <i class="fa-solid fa-arrow-up mr-1 animate-pulse"></i> Back to Hero View
+                </button>
+            </div>
 
         </div>
 
-    </main>
-
-    <!-- FOOTER -->
-    <footer class="w-full py-5 text-center relative z-20">
-        <p class="text-xs font-mono tracking-[0.2em] text-gray-500 uppercase">
-            Developed by <span class="text-cyber-pink font-bold text-glow">Asmi Katke</span>
-        </p>
-    </footer>
+        <!-- Footer for How It Works Section -->
+        <footer class="w-full text-center py-4 select-none">
+            <p class="text-[10px] sm:text-xs font-mono tracking-[0.2em] text-gray-500 uppercase">
+                &lt; Developed by Asmi Katke /&gt;
+            </p>
+        </footer>
+    </section>
 
     <!-- PROFILE ACTIVATION LOGIN MODAL -->
     <div id="modal-login" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-4">
@@ -291,7 +298,7 @@
                     </p>
                 </div>
 
-                <button type="submit" class="w-full py-3.5 px-4 rounded-xl font-bold text-xs uppercase hover:bg-cyber-pink/90 active:scale-95 transition-all duration-200 bg-cyber-pink text-white shadow-glow-pink flex items-center justify-center gap-2 mt-2">
+                <button type="submit" class="w-full py-3.5 px-4 rounded-xl font-bold text-xs uppercase hover:bg-cyber-pink/90 active:scale-95 transition-all duration-200 bg-cyber-pink text-white shadow-glow-pink flex items-center justify-center gap-2 mt-2 animate-all">
                     <span>Activate Session & Drive</span>
                     <i class="fa-solid fa-chevron-right text-[10px]"></i>
                 </button>
@@ -301,27 +308,29 @@
 
     <!-- MAIN INTERACTIVE EVENTS JS -->
     <script>
-        // --- SLIDE CONTROLLER ---
-        const slider = document.getElementById('main-slider');
+        // --- SMOOTH SCROLL ROUTER ---
         const learnHowBtn = document.getElementById('btn-learn-how');
         const backHeroBtn = document.getElementById('btn-back-hero');
 
-        function goToSlide(index) {
-            slider.style.transform = `translateX(-${index * 100}vw)`;
-            if (index === 1) {
-                window.location.hash = 'how-it-works';
-            } else {
-                window.location.hash = '';
+        learnHowBtn.addEventListener('click', () => {
+            document.getElementById('how-it-works').scrollIntoView({ behavior: 'smooth' });
+            window.location.hash = 'how-it-works';
+        });
+
+        backHeroBtn.addEventListener('click', () => {
+            document.getElementById('hero-section').scrollIntoView({ behavior: 'smooth' });
+            window.location.hash = '';
+        });
+
+        // Manage initial scroll state based on hash
+        window.addEventListener('load', () => {
+            if (window.location.hash === '#how-it-works') {
+                // Delay slightly to allow rendering to complete
+                setTimeout(() => {
+                    document.getElementById('how-it-works').scrollIntoView({ behavior: 'smooth' });
+                }, 100);
             }
-        }
-
-        learnHowBtn.addEventListener('click', () => goToSlide(1));
-        backHeroBtn.addEventListener('click', () => goToSlide(0));
-
-        // Manage initial slide state based on hash
-        if (window.location.hash === '#how-it-works') {
-            goToSlide(1);
-        }
+        });
 
         // --- LOGIN MODAL CONTROLLER ---
         const modal = document.getElementById('modal-login');
