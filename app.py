@@ -867,26 +867,14 @@ def test_video():
     })
 
 # ==========================================
-# RESTORED LEGACY FLASK HTML PAGES
+# DECOUPLED FRONTEND SERVING
 # ==========================================
 @app.route('/')
 def landing():
-    return render_template('index.html')
+    return send_from_directory('frontend', 'index.html')
 
-@app.route('/live_cam')
-def live_cam():
-    return render_template('live_cam.html', chat_id=session.get('chat_id', ''), stream_url=session.get('stream_url', ''))
-
-@app.route('/map')
-def map_view():
-    return render_template('map.html')
-    
-@app.route('/trip_stats')
-def trip_stats():
-    return render_template('trip_stats.html')
-
-@app.route('/frontend/<path:path>')
-def send_frontend_file(path):
+@app.route('/<path:path>')
+def serve_frontend(path):
     return send_from_directory('frontend', path)
 
 if __name__ == '__main__':
